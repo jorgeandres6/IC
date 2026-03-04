@@ -4,7 +4,7 @@ const SCRAPE_CREATORS_PROFILE_ENDPOINTS: Record<SocialPlatform, string> = {
   instagram: 'https://api.scrapecreators.com/v1/instagram/profile',
   facebook: 'https://api.scrapecreators.com/v1/facebook/profile',
   tiktok: 'https://api.scrapecreators.com/v1/tiktok/profile',
-  x: 'https://api.scrapecreators.com/v1/x/profile'
+  x: 'https://api.scrapecreators.com/v1/twitter/profile'
 };
 
 const isSocialPlatform = (value: unknown): value is SocialPlatform => {
@@ -22,6 +22,29 @@ const safeParseJson = (value: string, fallback: unknown) => {
   } catch {
     return fallback;
   }
+};
+
+const buildRequestUrl = (endpoint: string, profile: string) => {
+  const url = new URL(endpoint);
+
+  const normalizedProfile = profile.trim();
+  const handle = normalizedProfile
+    .replace(/^@/, '')
+    .replace(/^https?:\/\/[^/]+\//, '')
+    .split('/')[0]
+    .trim();
+
+  if (handle) {
+    url.searchParams.set('handle', handle);
+    url.searchParams.set('username', handle);
+  }
+
+  if (normalizedProfile.startsWith('http')) {
+    url.searchParams.set('url', normalizedProfile);
+    url.searchParams.set('profile_url', normalizedProfile);
+  }
+
+  return url.toString();
 };
 
 export default async function handler(req: any, res: any) {
@@ -57,17 +80,29 @@ export default async function handler(req: any, res: any) {
     }
 
     const endpoint = SCRAPE_CREATORS_PROFILE_ENDPOINTS[platform];
-    const response = await fetch(endpoint, {
-      method: 'POST',
+    const requestUrl = buildRequestUrl(endpoint, profile);
+    let response = await fetch(requestUrl, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        platform,
-        profile
-      })
+        'x-api-key': apiKey
+      }
     });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey
+        },
+        body: JSON.stringify({
+          handle: profile.replace(/^@/, ''),
+          username: profile.replace(/^@/, ''),
+          profile,
+          url: profile
+        })
+      });
+    }
 
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
