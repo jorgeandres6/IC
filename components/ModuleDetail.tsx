@@ -56,6 +56,14 @@ const compactNumberFormatter = new Intl.NumberFormat('es-ES', {
   maximumFractionDigits: 1
 });
 
+const stringifyRawData = (raw: unknown): string => {
+  try {
+    return JSON.stringify(raw, null, 2);
+  } catch {
+    return 'No se pudo serializar la data completa.';
+  }
+};
+
 const MODULE_DATA = {
   fundamentos: {
     title: 'Consultoría política: fundamentos',
@@ -362,6 +370,15 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                               Ver perfil
                             </a>
                           )}
+
+                          <details className="mt-4 bg-white border border-gray-200 rounded-xl p-3">
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                              Ver todos los datos extraídos
+                            </summary>
+                            <pre className="mt-3 max-h-80 overflow-auto text-xs text-slate-700 whitespace-pre-wrap break-words">
+                              {stringifyRawData(profile.raw)}
+                            </pre>
+                          </details>
                         </div>
                       ))}
                     </div>
