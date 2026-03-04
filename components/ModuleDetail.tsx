@@ -56,12 +56,138 @@ const compactNumberFormatter = new Intl.NumberFormat('es-ES', {
   maximumFractionDigits: 1
 });
 
-const stringifyRawData = (raw: unknown): string => {
-  try {
-    return JSON.stringify(raw, null, 2);
-  } catch {
-    return 'No se pudo serializar la data completa.';
+const fullNumberFormatter = new Intl.NumberFormat('es-ES');
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+};
+
+const humanizeKey = (key: string): string => {
+  const normalized = key
+    .replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim();
+
+  if (!normalized) {
+    return 'Campo';
   }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const isUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+
+const renderScalarValue = (value: string | number | boolean | null | undefined) => {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-slate-400">No disponible</span>;
+  }
+
+  if (typeof value === 'boolean') {
+    return <span className="text-slate-700">{value ? 'Sí' : 'No'}</span>;
+  }
+
+  if (typeof value === 'number') {
+    return <span className="text-slate-800 font-semibold">{fullNumberFormatter.format(value)}</span>;
+  }
+
+  if (isUrl(value)) {
+    return (
+      <a href={value} target="_blank" rel="noreferrer" className="text-emerald-700 hover:text-emerald-800 break-all">
+        {value}
+      </a>
+    );
+  }
+
+  return <span className="text-slate-700 break-words">{value}</span>;
+};
+
+const ReadableDataNode: React.FC<{ label: string; value: unknown; path: string }> = ({ label, value, path }) => {
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      return (
+        <div className="border border-gray-100 rounded-xl p-3 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+          <p className="text-sm text-slate-400 mt-1">Lista vacía</p>
+        </div>
+      );
+    }
+
+    return (
+      <details className="border border-gray-100 rounded-xl p-3 bg-white">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+          {label} ({value.length} elementos)
+        </summary>
+        <div className="mt-3 space-y-3">
+          {value.map((item, index) => (
+            <ReadableDataNode
+              key={`${path}-${index}`}
+              label={`Elemento ${index + 1}`}
+              value={item}
+              path={`${path}-${index}`}
+            />
+          ))}
+        </div>
+      </details>
+    );
+  }
+
+  if (isRecord(value)) {
+    const entries = Object.entries(value);
+
+    if (!entries.length) {
+      return (
+        <div className="border border-gray-100 rounded-xl p-3 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+          <p className="text-sm text-slate-400 mt-1">Sin datos</p>
+        </div>
+      );
+    }
+
+    return (
+      <details className="border border-gray-100 rounded-xl p-3 bg-white">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+          {label} ({entries.length} campos)
+        </summary>
+        <div className="mt-3 space-y-3">
+          {entries.map(([entryKey, entryValue]) => (
+            <ReadableDataNode
+              key={`${path}-${entryKey}`}
+              label={humanizeKey(entryKey)}
+              value={entryValue}
+              path={`${path}-${entryKey}`}
+            />
+          ))}
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <div className="border border-gray-100 rounded-xl p-3 bg-white">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{label}</p>
+      <div className="text-sm">{renderScalarValue(value as string | number | boolean | null | undefined)}</div>
+    </div>
+  );
+};
+
+const ReadableDataViewer: React.FC<{ data: unknown }> = ({ data }) => {
+  if (!isRecord(data)) {
+    return (
+      <div className="border border-gray-100 rounded-xl p-3 bg-white">
+        <p className="text-sm text-slate-700">{renderScalarValue(data as string | number | boolean | null | undefined)}</p>
+      </div>
+    );
+  }
+
+  const entries = Object.entries(data);
+
+  return (
+    <div className="space-y-3">
+      {entries.map(([key, value]) => (
+        <ReadableDataNode key={`root-${key}`} label={humanizeKey(key)} value={value} path={`root-${key}`} />
+      ))}
+    </div>
+  );
 };
 
 const MODULE_DATA = {
@@ -375,9 +501,9 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                             <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                               Ver todos los datos extraídos
                             </summary>
-                            <pre className="mt-3 max-h-80 overflow-auto text-xs text-slate-700 whitespace-pre-wrap break-words">
-                              {stringifyRawData(profile.raw)}
-                            </pre>
+                            <div className="mt-3 max-h-96 overflow-auto pr-1">
+                              <ReadableDataViewer data={profile.raw} />
+                            </div>
                           </details>
                         </div>
                       ))}
