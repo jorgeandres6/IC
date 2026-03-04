@@ -6,7 +6,6 @@ import {
   SocialPlatform,
   SocialProfilesInput
 } from '../types';
-import { SCRAPE_CREATORS_PROFILE_ENDPOINTS } from './endpoints';
 
 // Helper para manejar errores de respuesta HTTP de forma genérica
 const handleResponse = async <T>(response: Response): Promise<T> => {
@@ -25,8 +24,6 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   }
   return response.json();
 };
-
-const scrapeCreatorsApiKey = import.meta.env.VITE_SCRAPE_CREATORS_API_KEY as string | undefined;
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -169,10 +166,6 @@ export const apiService = {
   },
 
   scrapeCreatorsProfiles: async (profiles: SocialProfilesInput): Promise<ScrapeCreatorsResponse> => {
-    if (!scrapeCreatorsApiKey) {
-      throw new Error('Falta la variable de entorno VITE_SCRAPE_CREATORS_API_KEY para Scrape Creators API.');
-    }
-
     const entries = (Object.entries(profiles) as Array<[SocialPlatform, string]>)
       .map(([platform, value]) => [platform, value.trim()] as const)
       .filter(([, value]) => value.length > 0);
@@ -182,13 +175,10 @@ export const apiService = {
     }
 
     const requests = entries.map(async ([platform, profileInput]) => {
-      const endpoint = SCRAPE_CREATORS_PROFILE_ENDPOINTS[platform];
-
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/scrape-profile', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${scrapeCreatorsApiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           platform,
