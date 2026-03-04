@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { ModuleId } from '../types';
+import React, { useState } from 'react';
+import { ModuleId, ScrapedCreatorProfile, SocialPlatform, SocialProfilesInput } from '../types';
+import { apiService } from '../services/api';
 import { 
   ArrowLeft, 
   Bot, 
@@ -10,7 +11,8 @@ import {
   ChevronRight,
   ShieldAlert,
   Lightbulb,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 
 interface ModuleDetailProps {
@@ -18,6 +20,35 @@ interface ModuleDetailProps {
   onBack: () => void;
   onEnterChat: () => void;
 }
+
+interface ActorSubsection {
+  id: number;
+  title: string;
+  profiles: SocialProfilesInput;
+  loading: boolean;
+  error: string;
+  results: ScrapedCreatorProfile[];
+}
+
+const EMPTY_PROFILES: SocialProfilesInput = {
+  instagram: '',
+  facebook: '',
+  tiktok: '',
+  x: ''
+};
+
+const ACTOR_SUBSECTIONS: ActorSubsection[] = [
+  { id: 1, title: 'Subsección 1', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] },
+  { id: 2, title: 'Subsección 2', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] },
+  { id: 3, title: 'Subsección 3', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] }
+];
+
+const PLATFORM_LABELS: Record<SocialPlatform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  tiktok: 'TikTok',
+  x: 'X'
+};
 
 const MODULE_DATA = {
   fundamentos: {
@@ -105,6 +136,67 @@ const MODULE_DATA = {
 
 const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterChat }) => {
   const data = MODULE_DATA[moduleId];
+  const [actorSections, setActorSections] = useState<ActorSubsection[]>(ACTOR_SUBSECTIONS);
+
+  const handleProfileInputChange = (sectionId: number, platform: SocialPlatform, value: string) => {
+    setActorSections(prev => prev.map(section => (
+      section.id === sectionId
+        ? {
+            ...section,
+            profiles: {
+              ...section.profiles,
+              [platform]: value
+            }
+          }
+        : section
+    )));
+  };
+
+  const handleExtractProfiles = async (sectionId: number) => {
+    const section = actorSections.find(item => item.id === sectionId);
+    if (!section) {
+      return;
+    }
+
+    setActorSections(prev => prev.map(item => (
+      item.id === sectionId
+        ? { ...item, loading: true, error: '', results: [] }
+        : item
+    )));
+
+    try {
+      const response = await apiService.scrapeCreatorsProfiles(section.profiles);
+
+      setActorSections(prev => prev.map(item => (
+        item.id === sectionId
+          ? {
+              ...item,
+              loading: false,
+              error: response.profiles.length ? '' : 'No se encontró información para los perfiles ingresados.',
+              results: response.profiles
+            }
+          : item
+      )));
+    } catch (error: any) {
+      setActorSections(prev => prev.map(item => (
+        item.id === sectionId
+          ? {
+              ...item,
+              loading: false,
+              error: error?.message || 'No se pudo consultar la API de Scrape Creators.',
+              results: []
+            }
+          : item
+      )));
+    }
+  };
+
+  const renderMetric = (label: string, value: number | null) => (
+    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+      <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{label}</p>
+      <p className="text-lg font-bold text-slate-800">{value ?? 'N/D'}</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -180,6 +272,99 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
             </div>
           ))}
         </div>
+
+        {moduleId === 'mapeo' && (
+          <section className="mt-20 space-y-8">
+            <div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Extracción de perfiles sociales</h3>
+              <p className="text-gray-600">
+                Ingrese perfiles de Instagram, Facebook, TikTok y X en cada subsección para obtener los datos directamente desde Scrape Creators API.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {actorSections.map((section) => (
+                <div key={section.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 md:p-8">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <h4 className="text-xl font-bold text-slate-800">{section.title}</h4>
+                    <button
+                      onClick={() => handleExtractProfiles(section.id)}
+                      disabled={section.loading}
+                      className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {section.loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                      {section.loading ? 'Extrayendo...' : 'Obtener data del perfil'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(Object.keys(PLATFORM_LABELS) as SocialPlatform[]).map((platform) => (
+                      <label key={`${section.id}-${platform}`} className="flex flex-col gap-2">
+                        <span className="text-sm font-semibold text-slate-700">{PLATFORM_LABELS[platform]}</span>
+                        <input
+                          type="text"
+                          value={section.profiles[platform]}
+                          onChange={(e) => handleProfileInputChange(section.id, platform, e.target.value)}
+                          placeholder={`https://... o @usuario en ${PLATFORM_LABELS[platform]}`}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  {section.error && (
+                    <div className="mt-5 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
+                      {section.error}
+                    </div>
+                  )}
+
+                  {!!section.results.length && (
+                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {section.results.map((profile) => (
+                        <div key={`${section.id}-${profile.platform}-${profile.username}`} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
+                          <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">{PLATFORM_LABELS[profile.platform]}</p>
+                              <p className="text-lg font-bold text-slate-900">{profile.fullName || `@${profile.username || 'perfil'}`}</p>
+                              <p className="text-sm text-gray-500">@{profile.username || 'sin-usuario'}</p>
+                            </div>
+                            {profile.verified && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-semibold">
+                                Verificado
+                              </span>
+                            )}
+                          </div>
+
+                          {profile.biography && (
+                            <p className="text-sm text-gray-700 leading-relaxed mb-4">{profile.biography}</p>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {renderMetric('Seguidores', profile.followers)}
+                            {renderMetric('Siguiendo', profile.following)}
+                            {renderMetric('Publicaciones', profile.posts)}
+                            {renderMetric('Likes', profile.likes)}
+                          </div>
+
+                          {profile.profileUrl && (
+                            <a
+                              href={profile.profileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex mt-4 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                            >
+                              Ver perfil
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Call to Action */}
         <div className="mt-24 p-12 bg-slate-900 rounded-[3rem] text-center text-white relative overflow-hidden">

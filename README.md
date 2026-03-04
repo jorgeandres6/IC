@@ -16,7 +16,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/1JdgE_REfRJHCWJH43WO7pr
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+3. Configure Scrape Creators API variable in `.env.local`:
+   - `VITE_SCRAPE_CREATORS_API_KEY` (Bearer token / API key)
+4. Run the app:
    `npm run dev`
 
 ## Deploy on Vercel

@@ -1,4 +1,12 @@
-import { AuthResponse, BotResponse } from '../types';
+import {
+  AuthResponse,
+  BotResponse,
+  ScrapedCreatorProfile,
+  ScrapeCreatorsResponse,
+  SocialPlatform,
+  SocialProfilesInput
+} from '../types';
+import { SCRAPE_CREATORS_PROFILE_ENDPOINTS } from './endpoints';
 
 // Helper para manejar errores de respuesta HTTP de forma genérica
 const handleResponse = async <T>(response: Response): Promise<T> => {
@@ -16,6 +24,63 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
     }
   }
   return response.json();
+};
+
+const scrapeCreatorsApiKey = import.meta.env.VITE_SCRAPE_CREATORS_API_KEY as string | undefined;
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const cleanString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const extractUsername = (input: string): string => {
+  const text = input.trim();
+  if (!text) {
+    return '';
+  }
+
+  if (text.startsWith('@')) {
+    return text.slice(1);
+  }
+
+  try {
+    const normalized = text.startsWith('http') ? text : `https://${text}`;
+    const url = new URL(normalized);
+    const segments = url.pathname.split('/').filter(Boolean);
+    return segments[0] || text;
+  } catch {
+    return text;
+  }
+};
+
+const normalizeScrapedProfile = (platform: SocialPlatform, payload: unknown, sourceInput: string): ScrapedCreatorProfile => {
+  const candidate = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>;
+  const username = cleanString(candidate.username) || cleanString(candidate.handle) || extractUsername(sourceInput);
+
+  return {
+    platform,
+    username,
+    fullName: cleanString(candidate.fullName) || cleanString(candidate.name),
+    biography: cleanString(candidate.biography) || cleanString(candidate.bio) || cleanString(candidate.description),
+    followers: toNumber(candidate.followers) ?? toNumber(candidate.followersCount),
+    following: toNumber(candidate.following) ?? toNumber(candidate.followingCount),
+    posts: toNumber(candidate.posts) ?? toNumber(candidate.postsCount),
+    likes: toNumber(candidate.likes) ?? toNumber(candidate.likesCount),
+    verified: Boolean(candidate.verified),
+    profileUrl: cleanString(candidate.profileUrl) || sourceInput,
+    avatarUrl: cleanString(candidate.avatarUrl) || cleanString(candidate.profilePicture),
+    raw: payload
+  };
 };
 
 export const apiService = {
@@ -101,5 +166,42 @@ export const apiService = {
       console.error("Message Error:", error);
       throw error;
     }
+  },
+
+  scrapeCreatorsProfiles: async (profiles: SocialProfilesInput): Promise<ScrapeCreatorsResponse> => {
+    if (!scrapeCreatorsApiKey) {
+      throw new Error('Falta la variable de entorno VITE_SCRAPE_CREATORS_API_KEY para Scrape Creators API.');
+    }
+
+    const entries = (Object.entries(profiles) as Array<[SocialPlatform, string]>)
+      .map(([platform, value]) => [platform, value.trim()] as const)
+      .filter(([, value]) => value.length > 0);
+
+    if (entries.length === 0) {
+      return { profiles: [] };
+    }
+
+    const requests = entries.map(async ([platform, profileInput]) => {
+      const endpoint = SCRAPE_CREATORS_PROFILE_ENDPOINTS[platform];
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${scrapeCreatorsApiKey}`
+        },
+        body: JSON.stringify({
+          platform,
+          profile: profileInput
+        })
+      });
+
+      const data = await handleResponse<any>(response);
+      const payload = Array.isArray(data) ? data[0] : data;
+      return normalizeScrapedProfile(platform, payload, profileInput);
+    });
+
+    const scrapedProfiles = await Promise.all(requests);
+    return { profiles: scrapedProfiles };
   }
 };
