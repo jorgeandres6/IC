@@ -459,7 +459,7 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                   )}
 
                   {!!section.results.length && (
-                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div className="mt-6 grid grid-cols-1 gap-5">
                       {section.results.map((profile) => (
                         <div key={`${section.platform}-${profile.platform}-${profile.username}`} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
                           <div className="flex items-start justify-between gap-4 mb-4">
