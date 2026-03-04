@@ -26,4 +26,4 @@ export enum AuthMode {
   REGISTER = 'REGISTER'
 }
 
-export type ModuleId = 'fundamentos' | 'institucional' | 'mapeo' | 'discurso';
+export type ModuleId = 'fundamentos' | 'mapeo' | 'discurso';

@@ -5,7 +5,6 @@ import {
   ArrowLeft, 
   Bot, 
   BookOpen, 
-  Gavel, 
   Map, 
   MessageSquare,
   ChevronRight,
@@ -45,33 +44,6 @@ const MODULE_DATA = {
         subtitle: 'Gestión de crisis y estrategia',
         content: 'Toda crisis es una oportunidad de reencuadre. La estrategia debe ser flexible ante el caos pero firme en sus objetivos finales.',
         points: ['Detección temprana de señales', 'Control de daños narrativo', 'Recuperación de iniciativa']
-      }
-    ]
-  },
-  institucional: {
-    title: 'Análisis institucional y constitucional',
-    icon: <Gavel className="text-indigo-600" />,
-    color: 'indigo',
-    sections: [
-      {
-        subtitle: 'Arquitectura del Estado',
-        content: 'Comprender cómo interactúan los poderes es vital para saber dónde residen los frenos y contrapesos reales de una decisión política.',
-        points: ['Equilibrio de poderes', 'Distribución territorial', 'Organismos autónomos']
-      },
-      {
-        subtitle: 'Competencias y límites',
-        content: 'El derecho constitucional marca el campo de juego. Una estrategia que ignore los límites legales está condenada al fracaso institucional.',
-        points: ['Jerarquía normativa', 'Atribuciones específicas', 'Seguridad jurídica']
-      },
-      {
-        subtitle: 'Procedimientos y controles',
-        content: 'La burocracia tiene su propia lógica. Los controles parlamentarios y judiciales definen la viabilidad de cualquier reforma estratégica.',
-        points: ['Proceso legislativo', 'Fiscalización y transparencia', 'Acción de inconstitucionalidad']
-      },
-      {
-        subtitle: 'Reformas y precedentes',
-        content: 'La historia constitucional enseña cómo se han resuelto crisis previas. Los precedentes son la brújula en territorio desconocido.',
-        points: ['Jurisprudencia clave', 'Historia de enmiendas', 'Tendencias de reforma']
       }
     ]
   },

@@ -3,7 +3,6 @@ import React from 'react';
 import { User as UserType, ModuleId } from '../types';
 import { 
   BookOpen, 
-  Gavel, 
   Map, 
   MessageSquare, 
   LogOut, 
@@ -27,21 +26,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ user, onEnterChat, onLogout, on
     {
       id: 'fundamentos' as ModuleId,
       icon: <BookOpen className="text-blue-600" size={32} />,
-      title: 'Consultoría política: fundamentos',
+      title: 'Quieres saber que es Consultoría Política?',
       items: ['Rol del consultor', 'Tipos de consultoría', 'Ética profesional', 'Gestión de crisis'],
       color: 'bg-blue-50'
     },
     {
-      id: 'institucional' as ModuleId,
-      icon: <Gavel className="text-indigo-600" size={32} />,
-      title: 'Análisis institucional y constitucional',
-      items: ['Arquitectura del Estado', 'Competencias y límites', 'Procedimientos', 'Reformas'],
-      color: 'bg-indigo-50'
-    },
-    {
       id: 'mapeo' as ModuleId,
       icon: <Map className="text-emerald-600" size={32} />,
-      title: 'Mapeo de actores y poder',
+      title: 'Mapeo de Actores',
       items: ['Identificación de actores', 'Relaciones y conflictos', 'Intereses', 'Matrices de influencia'],
       color: 'bg-emerald-50'
     },
@@ -116,19 +108,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ user, onEnterChat, onLogout, on
                   {mod.icon}
                 </div>
                 <h3 className="font-bold text-slate-800 text-lg mb-4 leading-tight">{mod.title}</h3>
-                <ul className="space-y-3 flex-1">
-                  {mod.items.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
-                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></div>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6 pt-4 border-t border-gray-50">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 group-hover:text-blue-600 transition-colors">
-                    Explorar Contenido <ChevronRight size={14} />
-                  </span>
-                </div>
+                {mod.id !== 'mapeo' && (
+                  <>
+                    <ul className="space-y-3 flex-1">
+                      {mod.items.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                          <div className="w-1.5 h-1.5 bg-gray-300 rounded-full mt-1.5 shrink-0"></div>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-6 pt-4 border-t border-gray-50">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 group-hover:text-blue-600 transition-colors">
+                        Explorar Contenido <ChevronRight size={14} />
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
