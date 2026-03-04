@@ -21,10 +21,10 @@ interface ModuleDetailProps {
   onEnterChat: () => void;
 }
 
-interface ActorSubsection {
-  id: number;
+interface SocialSubsection {
+  platform: SocialPlatform;
   title: string;
-  profiles: SocialProfilesInput;
+  profileInput: string;
   loading: boolean;
   error: string;
   results: ScrapedCreatorProfile[];
@@ -37,10 +37,11 @@ const EMPTY_PROFILES: SocialProfilesInput = {
   x: ''
 };
 
-const ACTOR_SUBSECTIONS: ActorSubsection[] = [
-  { id: 1, title: 'Subsección 1', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] },
-  { id: 2, title: 'Subsección 2', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] },
-  { id: 3, title: 'Subsección 3', profiles: { ...EMPTY_PROFILES }, loading: false, error: '', results: [] }
+const SOCIAL_SUBSECTIONS: SocialSubsection[] = [
+  { platform: 'instagram', title: 'Subsección Instagram', profileInput: '', loading: false, error: '', results: [] },
+  { platform: 'facebook', title: 'Subsección Facebook', profileInput: '', loading: false, error: '', results: [] },
+  { platform: 'tiktok', title: 'Subsección TikTok', profileInput: '', loading: false, error: '', results: [] },
+  { platform: 'x', title: 'Subsección X', profileInput: '', loading: false, error: '', results: [] }
 ];
 
 const PLATFORM_LABELS: Record<SocialPlatform, string> = {
@@ -141,39 +142,39 @@ const MODULE_DATA = {
 
 const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterChat }) => {
   const data = MODULE_DATA[moduleId];
-  const [actorSections, setActorSections] = useState<ActorSubsection[]>(ACTOR_SUBSECTIONS);
+  const [socialSections, setSocialSections] = useState<SocialSubsection[]>(SOCIAL_SUBSECTIONS);
 
-  const handleProfileInputChange = (sectionId: number, platform: SocialPlatform, value: string) => {
-    setActorSections(prev => prev.map(section => (
-      section.id === sectionId
+  const handleProfileInputChange = (platform: SocialPlatform, value: string) => {
+    setSocialSections(prev => prev.map(section => (
+      section.platform === platform
         ? {
             ...section,
-            profiles: {
-              ...section.profiles,
-              [platform]: value
-            }
+            profileInput: value
           }
         : section
     )));
   };
 
-  const handleExtractProfiles = async (sectionId: number) => {
-    const section = actorSections.find(item => item.id === sectionId);
+  const handleExtractProfiles = async (platform: SocialPlatform) => {
+    const section = socialSections.find(item => item.platform === platform);
     if (!section) {
       return;
     }
 
-    setActorSections(prev => prev.map(item => (
-      item.id === sectionId
+    setSocialSections(prev => prev.map(item => (
+      item.platform === platform
         ? { ...item, loading: true, error: '', results: [] }
         : item
     )));
 
     try {
-      const response = await apiService.scrapeCreatorsProfiles(section.profiles);
+      const response = await apiService.scrapeCreatorsProfiles({
+        ...EMPTY_PROFILES,
+        [platform]: section.profileInput
+      });
 
-      setActorSections(prev => prev.map(item => (
-        item.id === sectionId
+      setSocialSections(prev => prev.map(item => (
+        item.platform === platform
           ? {
               ...item,
               loading: false,
@@ -183,8 +184,8 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
           : item
       )));
     } catch (error: any) {
-      setActorSections(prev => prev.map(item => (
-        item.id === sectionId
+      setSocialSections(prev => prev.map(item => (
+        item.platform === platform
           ? {
               ...item,
               loading: false,
@@ -292,12 +293,12 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
             </div>
 
             <div className="space-y-6">
-              {actorSections.map((section) => (
-                <div key={section.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 md:p-8">
+              {socialSections.map((section) => (
+                <div key={section.platform} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 md:p-8">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <h4 className="text-xl font-bold text-slate-800">{section.title}</h4>
                     <button
-                      onClick={() => handleExtractProfiles(section.id)}
+                      onClick={() => handleExtractProfiles(section.platform)}
                       disabled={section.loading}
                       className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                     >
@@ -306,20 +307,16 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(Object.keys(PLATFORM_LABELS) as SocialPlatform[]).map((platform) => (
-                      <label key={`${section.id}-${platform}`} className="flex flex-col gap-2">
-                        <span className="text-sm font-semibold text-slate-700">{PLATFORM_LABELS[platform]}</span>
-                        <input
-                          type="text"
-                          value={section.profiles[platform]}
-                          onChange={(e) => handleProfileInputChange(section.id, platform, e.target.value)}
-                          placeholder={`https://... o @usuario en ${PLATFORM_LABELS[platform]}`}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-slate-700">{PLATFORM_LABELS[section.platform]}</span>
+                    <input
+                      type="text"
+                      value={section.profileInput}
+                      onChange={(e) => handleProfileInputChange(section.platform, e.target.value)}
+                      placeholder={`https://... o @usuario en ${PLATFORM_LABELS[section.platform]}`}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </label>
 
                   {section.error && (
                     <div className="mt-5 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
@@ -330,7 +327,7 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                   {!!section.results.length && (
                     <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
                       {section.results.map((profile) => (
-                        <div key={`${section.id}-${profile.platform}-${profile.username}`} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
+                        <div key={`${section.platform}-${profile.platform}-${profile.username}`} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
                           <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                               <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">{PLATFORM_LABELS[profile.platform]}</p>
