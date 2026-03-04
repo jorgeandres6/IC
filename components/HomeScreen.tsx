@@ -97,7 +97,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ user, onEnterChat, onLogout, on
             <h2 className="text-xl font-bold text-slate-800">Módulos de Conocimiento Estratégico</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {modules.map((mod) => (
               <div 
                 key={mod.id} 
@@ -107,7 +107,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ user, onEnterChat, onLogout, on
                 <div className={`${mod.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110`}>
                   {mod.icon}
                 </div>
-                <h3 className="font-bold text-slate-800 text-lg mb-4 leading-tight">{mod.title}</h3>
+                <h3 className={`font-bold text-slate-800 mb-4 leading-tight ${mod.id === 'mapeo' ? 'text-2xl text-center' : 'text-lg'}`}>
+                  {mod.title}
+                </h3>
                 {mod.id !== 'mapeo' && (
                   <>
                     <ul className="space-y-3 flex-1">
