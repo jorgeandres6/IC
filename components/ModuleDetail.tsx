@@ -50,6 +50,11 @@ const PLATFORM_LABELS: Record<SocialPlatform, string> = {
   x: 'X'
 };
 
+const compactNumberFormatter = new Intl.NumberFormat('es-ES', {
+  notation: 'compact',
+  maximumFractionDigits: 1
+});
+
 const MODULE_DATA = {
   fundamentos: {
     title: 'Consultoría política: fundamentos',
@@ -194,9 +199,13 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
   const renderMetric = (label: string, value: number | null) => (
     <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
       <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{label}</p>
-      <p className="text-lg font-bold text-slate-800">{value ?? 'N/D'}</p>
+      <p className="text-lg font-bold text-slate-800" title={value !== null ? String(value) : undefined}>
+        {value !== null ? compactNumberFormatter.format(value) : 'N/D'}
+      </p>
     </div>
   );
+
+  const formatHandle = (username: string) => username.replace(/^@/, '');
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -325,8 +334,8 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                           <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                               <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">{PLATFORM_LABELS[profile.platform]}</p>
-                              <p className="text-lg font-bold text-slate-900">{profile.fullName || `@${profile.username || 'perfil'}`}</p>
-                              <p className="text-sm text-gray-500">@{profile.username || 'sin-usuario'}</p>
+                              <p className="text-lg font-bold text-slate-900">{profile.fullName || `@${profile.username ? formatHandle(profile.username) : 'perfil'}`}</p>
+                              <p className="text-sm text-gray-500">@{profile.username ? formatHandle(profile.username) : 'sin-usuario'}</p>
                             </div>
                             {profile.verified && (
                               <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-semibold">

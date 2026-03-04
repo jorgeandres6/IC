@@ -26,6 +26,11 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
 };
 
 const toNumber = (value: unknown): number | null => {
+  if (value && typeof value === 'object') {
+    const candidate = value as Record<string, unknown>;
+    return toNumber(candidate.count) ?? toNumber(candidate.value);
+  }
+
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
@@ -39,6 +44,64 @@ const toNumber = (value: unknown): number | null => {
 };
 
 const cleanString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const asObject = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  return value as Record<string, unknown>;
+};
+
+const getByPath = (source: Record<string, unknown>, path: string): unknown => {
+  return path.split('.').reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined;
+    }
+    return (current as Record<string, unknown>)[segment];
+  }, source);
+};
+
+const pickString = (candidates: Record<string, unknown>[], paths: string[]): string => {
+  for (const candidate of candidates) {
+    for (const path of paths) {
+      const value = cleanString(getByPath(candidate, path));
+      if (value) {
+        return value;
+      }
+    }
+  }
+  return '';
+};
+
+const pickNumber = (candidates: Record<string, unknown>[], paths: string[]): number | null => {
+  for (const candidate of candidates) {
+    for (const path of paths) {
+      const value = toNumber(getByPath(candidate, path));
+      if (value !== null) {
+        return value;
+      }
+    }
+  }
+  return null;
+};
+
+const pickBoolean = (candidates: Record<string, unknown>[], paths: string[]): boolean => {
+  for (const candidate of candidates) {
+    for (const path of paths) {
+      const value = getByPath(candidate, path);
+      if (typeof value === 'boolean') {
+        return value;
+      }
+      if (value === 1 || value === '1' || value === 'true') {
+        return true;
+      }
+      if (value === 0 || value === '0' || value === 'false') {
+        return false;
+      }
+    }
+  }
+  return false;
+};
 
 const extractUsername = (input: string): string => {
   const text = input.trim();
@@ -61,21 +124,100 @@ const extractUsername = (input: string): string => {
 };
 
 const normalizeScrapedProfile = (platform: SocialPlatform, payload: unknown, sourceInput: string): ScrapedCreatorProfile => {
-  const candidate = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>;
-  const username = cleanString(candidate.username) || cleanString(candidate.handle) || extractUsername(sourceInput);
+  const root = asObject(payload);
+  const wrapperData = asObject(root.data);
+  const wrapperResult = asObject(root.result);
+  const wrapperProfile = asObject(root.profile);
+  const wrapperUser = asObject(root.user);
+  const nestedDataProfile = asObject(wrapperData.profile);
+  const nestedDataUser = asObject(wrapperData.user);
+  const nestedResultProfile = asObject(wrapperResult.profile);
+  const nestedResultUser = asObject(wrapperResult.user);
+  const candidates = [
+    root,
+    wrapperData,
+    wrapperResult,
+    wrapperProfile,
+    wrapperUser,
+    nestedDataProfile,
+    nestedDataUser,
+    nestedResultProfile,
+    nestedResultUser
+  ];
+
+  const username = pickString(candidates, [
+    'username',
+    'handle',
+    'user_name',
+    'screen_name',
+    'user.username',
+    'profile.username',
+    'profile.handle'
+  ]) || extractUsername(sourceInput);
+
+  const inferredProfileUrl = username
+    ? {
+        instagram: `https://www.instagram.com/${username}`,
+        facebook: `https://www.facebook.com/${username}`,
+        tiktok: `https://www.tiktok.com/@${username}`,
+        x: `https://x.com/${username}`
+      }[platform]
+    : sourceInput;
 
   return {
     platform,
     username,
-    fullName: cleanString(candidate.fullName) || cleanString(candidate.name),
-    biography: cleanString(candidate.biography) || cleanString(candidate.bio) || cleanString(candidate.description),
-    followers: toNumber(candidate.followers) ?? toNumber(candidate.followersCount),
-    following: toNumber(candidate.following) ?? toNumber(candidate.followingCount),
-    posts: toNumber(candidate.posts) ?? toNumber(candidate.postsCount),
-    likes: toNumber(candidate.likes) ?? toNumber(candidate.likesCount),
-    verified: Boolean(candidate.verified),
-    profileUrl: cleanString(candidate.profileUrl) || sourceInput,
-    avatarUrl: cleanString(candidate.avatarUrl) || cleanString(candidate.profilePicture),
+    fullName: pickString(candidates, ['fullName', 'full_name', 'name', 'display_name', 'nickname']),
+    biography: pickString(candidates, ['biography', 'bio', 'description', 'about']),
+    followers: pickNumber(candidates, [
+      'followers',
+      'followersCount',
+      'followers_count',
+      'follower_count',
+      'edge_followed_by.count',
+      'stats.followers',
+      'public_metrics.followers_count',
+      'subscribers'
+    ]),
+    following: pickNumber(candidates, [
+      'following',
+      'followingCount',
+      'following_count',
+      'friends_count',
+      'edge_follow.count',
+      'stats.following',
+      'public_metrics.following_count'
+    ]),
+    posts: pickNumber(candidates, [
+      'posts',
+      'postsCount',
+      'posts_count',
+      'media_count',
+      'tweet_count',
+      'statuses_count',
+      'stats.posts',
+      'public_metrics.tweet_count'
+    ]),
+    likes: pickNumber(candidates, [
+      'likes',
+      'likesCount',
+      'likes_count',
+      'favourites_count',
+      'public_metrics.like_count',
+      'stats.likes'
+    ]),
+    verified: pickBoolean(candidates, ['verified', 'is_verified']),
+    profileUrl: pickString(candidates, ['profileUrl', 'profile_url', 'url', 'permalink', 'link']) || inferredProfileUrl,
+    avatarUrl: pickString(candidates, [
+      'avatarUrl',
+      'avatar_url',
+      'profilePicture',
+      'profile_picture',
+      'profile_pic_url',
+      'profile_pic_url_hd',
+      'profile_image_url',
+      'image'
+    ]),
     raw: payload
   };
 };
