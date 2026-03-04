@@ -102,12 +102,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ user, onEnterChat, onLogout, on
               <div 
                 key={mod.id} 
                 onClick={() => onOpenModule(mod.id)}
-                className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group flex flex-col cursor-pointer"
+                className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group flex flex-col cursor-pointer ${mod.id === 'mapeo' ? 'justify-center' : ''}`}
               >
-                <div className={`${mod.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110`}>
-                  {mod.icon}
-                </div>
-                <h3 className={`font-bold text-slate-800 mb-4 leading-tight ${mod.id === 'mapeo' ? 'text-2xl text-center' : 'text-lg'}`}>
+                {mod.id !== 'mapeo' && (
+                  <div className={`${mod.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110`}>
+                    {mod.icon}
+                  </div>
+                )}
+                <h3 className={`font-bold text-slate-800 mb-4 leading-tight ${mod.id === 'mapeo' ? 'text-2xl text-center my-auto mb-0' : 'text-lg'}`}>
                   {mod.title}
                 </h3>
                 {mod.id !== 'mapeo' && (
