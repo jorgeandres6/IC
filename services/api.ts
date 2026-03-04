@@ -103,6 +103,33 @@ const pickBoolean = (candidates: Record<string, unknown>[], paths: string[]): bo
   return false;
 };
 
+const normalizeInstagramProfile = (payload: unknown, sourceInput: string): ScrapedCreatorProfile | null => {
+  const root = asObject(payload);
+  const user = asObject(getByPath(root, 'data.user'));
+
+  if (!Object.keys(user).length) {
+    return null;
+  }
+
+  const username = cleanString(user.username) || extractUsername(sourceInput);
+  const latestNode = asObject(getByPath(user, 'edge_owner_to_timeline_media.edges.0.node'));
+
+  return {
+    platform: 'instagram',
+    username,
+    fullName: cleanString(user.full_name) || cleanString(user.fullName) || cleanString(user.name),
+    biography: cleanString(user.biography) || cleanString(getByPath(user, 'biography_with_entities.raw_text')),
+    followers: toNumber(getByPath(user, 'edge_followed_by.count')),
+    following: toNumber(getByPath(user, 'edge_follow.count')),
+    posts: toNumber(getByPath(user, 'edge_owner_to_timeline_media.count')),
+    likes: toNumber(getByPath(latestNode, 'edge_liked_by.count')) ?? toNumber(getByPath(latestNode, 'edge_media_preview_like.count')),
+    verified: pickBoolean([user], ['is_verified', 'verified']),
+    profileUrl: cleanString(user.external_url) || cleanString(user.external_url_linkshimmed) || (username ? `https://www.instagram.com/${username}` : sourceInput),
+    avatarUrl: cleanString(user.profile_pic_url_hd) || cleanString(user.profile_pic_url),
+    raw: payload
+  };
+};
+
 const extractUsername = (input: string): string => {
   const text = input.trim();
   if (!text) {
@@ -124,6 +151,13 @@ const extractUsername = (input: string): string => {
 };
 
 const normalizeScrapedProfile = (platform: SocialPlatform, payload: unknown, sourceInput: string): ScrapedCreatorProfile => {
+  if (platform === 'instagram') {
+    const instagramProfile = normalizeInstagramProfile(payload, sourceInput);
+    if (instagramProfile) {
+      return instagramProfile;
+    }
+  }
+
   const root = asObject(payload);
   const wrapperData = asObject(root.data);
   const wrapperResult = asObject(root.result);
