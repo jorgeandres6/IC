@@ -49,6 +49,10 @@ export interface ScrapeCreatorsResponse {
   profiles: ScrapedCreatorProfile[];
 }
 
+export interface ProfileAnalysisResponse {
+  analysis: string;
+}
+
 export enum AuthMode {
   LOGIN = 'LOGIN',
   REGISTER = 'REGISTER'

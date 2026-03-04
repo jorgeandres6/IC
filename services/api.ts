@@ -1,6 +1,7 @@
 import {
   AuthResponse,
   BotResponse,
+  ProfileAnalysisResponse,
   ScrapedCreatorProfile,
   ScrapeCreatorsResponse,
   SocialPlatform,
@@ -130,6 +131,119 @@ const normalizeInstagramProfile = (payload: unknown, sourceInput: string): Scrap
   };
 };
 
+const normalizeFacebookProfile = (payload: unknown, sourceInput: string): ScrapedCreatorProfile | null => {
+  const root = asObject(payload);
+
+  const name = cleanString(root.name);
+  const profileUrl = cleanString(root.url) || cleanString(root.website) || sourceInput;
+  const hasFacebookSignature = Boolean(name || cleanString(root.pageIntro) || cleanString(root.category) || toNumber(root.followerCount) !== null);
+
+  if (!hasFacebookSignature) {
+    return null;
+  }
+
+  const derivedUsername = profileUrl ? extractUsername(profileUrl) : '';
+  const username = derivedUsername || extractUsername(sourceInput);
+
+  const intro = cleanString(root.pageIntro);
+  const category = cleanString(root.category);
+  const services = cleanString(root.services);
+  const address = cleanString(root.address);
+  const biography = [intro, category, services, address].filter(Boolean).join(' • ');
+
+  return {
+    platform: 'facebook',
+    username,
+    fullName: name,
+    biography,
+    followers: toNumber(root.followerCount),
+    following: null,
+    posts: toNumber(root.postsCount),
+    likes: toNumber(root.likeCount),
+    verified: pickBoolean([root], ['isVerified', 'verified', 'is_verified']),
+    profileUrl,
+    avatarUrl: cleanString(root.profilePicLarge) || cleanString(root.profilePicMedium) || cleanString(root.profilePicSmall) || cleanString(getByPath(root, 'profilePhoto.url')),
+    raw: payload
+  };
+};
+
+const normalizeTikTokProfile = (payload: unknown, sourceInput: string): ScrapedCreatorProfile | null => {
+  const root = asObject(payload);
+  const user = asObject(root.user);
+  const stats = asObject(root.stats);
+
+  const hasTikTokSignature = Boolean(
+    cleanString(user.uniqueId) ||
+    cleanString(user.nickname) ||
+    toNumber(stats.followerCount) !== null ||
+    toNumber(stats.videoCount) !== null
+  );
+
+  if (!hasTikTokSignature) {
+    return null;
+  }
+
+  const username = cleanString(user.uniqueId) || cleanString(user.secUid) || extractUsername(sourceInput);
+  const profileUrl = username ? `https://www.tiktok.com/@${username}` : sourceInput;
+  const bioLink = cleanString(getByPath(user, 'bioLink.link'));
+  const signature = cleanString(user.signature);
+
+  return {
+    platform: 'tiktok',
+    username,
+    fullName: cleanString(user.nickname) || cleanString(user.displayName),
+    biography: [signature, bioLink].filter(Boolean).join(' • '),
+    followers: toNumber(stats.followerCount),
+    following: toNumber(stats.followingCount),
+    posts: toNumber(stats.videoCount),
+    likes: toNumber(stats.heartCount) ?? toNumber(stats.heart),
+    verified: pickBoolean([user], ['verified']),
+    profileUrl,
+    avatarUrl: cleanString(user.avatarLarger) || cleanString(user.avatarMedium) || cleanString(user.avatarThumb),
+    raw: payload
+  };
+};
+
+const normalizeXProfile = (payload: unknown, sourceInput: string): ScrapedCreatorProfile | null => {
+  const root = asObject(payload);
+  const legacy = asObject(root.legacy);
+
+  const hasXSignature = Boolean(
+    cleanString(legacy.screen_name) ||
+    cleanString(legacy.name) ||
+    toNumber(legacy.followers_count) !== null ||
+    toNumber(legacy.statuses_count) !== null
+  );
+
+  if (!hasXSignature) {
+    return null;
+  }
+
+  const username = cleanString(legacy.screen_name) || extractUsername(sourceInput);
+  const externalUrl = cleanString(legacy.url);
+  const location = cleanString(legacy.location);
+  const description = cleanString(legacy.description);
+
+  return {
+    platform: 'x',
+    username,
+    fullName: cleanString(legacy.name),
+    biography: [description, location].filter(Boolean).join(' • '),
+    followers: toNumber(legacy.followers_count) ?? toNumber(legacy.normal_followers_count),
+    following: toNumber(legacy.friends_count),
+    posts: toNumber(legacy.statuses_count) ?? toNumber(legacy.media_count),
+    likes: toNumber(legacy.favourites_count),
+    verified: pickBoolean([
+      root,
+      legacy,
+      asObject(root.verification_info)
+    ], ['is_blue_verified', 'verified', 'is_identity_verified']),
+    profileUrl: username ? `https://x.com/${username}` : (externalUrl || sourceInput),
+    avatarUrl: cleanString(legacy.profile_image_url_https),
+    raw: payload
+  };
+};
+
 const extractUsername = (input: string): string => {
   const text = input.trim();
   if (!text) {
@@ -155,6 +269,27 @@ const normalizeScrapedProfile = (platform: SocialPlatform, payload: unknown, sou
     const instagramProfile = normalizeInstagramProfile(payload, sourceInput);
     if (instagramProfile) {
       return instagramProfile;
+    }
+  }
+
+  if (platform === 'facebook') {
+    const facebookProfile = normalizeFacebookProfile(payload, sourceInput);
+    if (facebookProfile) {
+      return facebookProfile;
+    }
+  }
+
+  if (platform === 'tiktok') {
+    const tiktokProfile = normalizeTikTokProfile(payload, sourceInput);
+    if (tiktokProfile) {
+      return tiktokProfile;
+    }
+  }
+
+  if (platform === 'x') {
+    const xProfile = normalizeXProfile(payload, sourceInput);
+    if (xProfile) {
+      return xProfile;
     }
   }
 
@@ -369,5 +504,17 @@ export const apiService = {
 
     const scrapedProfiles = await Promise.all(requests);
     return { profiles: scrapedProfiles };
+  },
+
+  analyzeProfileWithGemini: async (profile: ScrapedCreatorProfile): Promise<ProfileAnalysisResponse> => {
+    const response = await fetch('/api/profile-analysis', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ profile })
+    });
+
+    return handleResponse<ProfileAnalysisResponse>(response);
   }
 };

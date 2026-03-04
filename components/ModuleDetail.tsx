@@ -30,6 +30,12 @@ interface SocialSubsection {
   results: ScrapedCreatorProfile[];
 }
 
+interface ProfileAnalysisState {
+  loading: boolean;
+  analysis: string;
+  error: string;
+}
+
 const EMPTY_PROFILES: SocialProfilesInput = {
   instagram: '',
   facebook: '',
@@ -277,6 +283,7 @@ const MODULE_DATA = {
 const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterChat }) => {
   const data = MODULE_DATA[moduleId];
   const [socialSections, setSocialSections] = useState<SocialSubsection[]>(SOCIAL_SUBSECTIONS);
+  const [profileAnalyses, setProfileAnalyses] = useState<Record<string, ProfileAnalysisState>>({});
 
   const handleProfileInputChange = (platform: SocialPlatform, value: string) => {
     setSocialSections(prev => prev.map(section => (
@@ -307,13 +314,65 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
         [platform]: section.profileInput
       });
 
+      const extractedProfiles = response.profiles;
+
+      const nextAnalysisState: Record<string, ProfileAnalysisState> = {};
+      extractedProfiles.forEach((profile) => {
+        const profileKey = getProfileKey(platform, profile);
+        nextAnalysisState[profileKey] = {
+          loading: true,
+          analysis: '',
+          error: ''
+        };
+      });
+
+      if (extractedProfiles.length) {
+        setProfileAnalyses(prev => ({ ...prev, ...nextAnalysisState }));
+      }
+
+      const analysisResults = await Promise.all(
+        extractedProfiles.map(async (profile) => {
+          const profileKey = getProfileKey(platform, profile);
+          try {
+            const analysisResponse = await apiService.analyzeProfileWithGemini(profile);
+            return {
+              profileKey,
+              state: {
+                loading: false,
+                analysis: analysisResponse.analysis,
+                error: ''
+              } as ProfileAnalysisState
+            };
+          } catch (error: any) {
+            return {
+              profileKey,
+              state: {
+                loading: false,
+                analysis: '',
+                error: error?.message || 'No se pudo generar el análisis con Gemini.'
+              } as ProfileAnalysisState
+            };
+          }
+        })
+      );
+
+      if (analysisResults.length) {
+        setProfileAnalyses(prev => {
+          const merged = { ...prev };
+          analysisResults.forEach(({ profileKey, state }) => {
+            merged[profileKey] = state;
+          });
+          return merged;
+        });
+      }
+
       setSocialSections(prev => prev.map(item => (
         item.platform === platform
           ? {
               ...item,
               loading: false,
-              error: response.profiles.length ? '' : 'No se encontró información para los perfiles ingresados.',
-              results: response.profiles
+              error: extractedProfiles.length ? '' : 'No se encontró información para los perfiles ingresados.',
+              results: extractedProfiles
             }
           : item
       )));
@@ -329,6 +388,10 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
           : item
       )));
     }
+  };
+
+  const getProfileKey = (sectionPlatform: SocialPlatform, profile: ScrapedCreatorProfile) => {
+    return `${sectionPlatform}-${profile.platform}-${profile.username || profile.fullName || 'perfil'}`;
   };
 
   const renderMetric = (label: string, value: number | null) => (
@@ -437,7 +500,7 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                       className="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       {section.loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                      {section.loading ? 'Extrayendo...' : 'Obtener data del perfil'}
+                      {section.loading ? 'Extrayendo y analizando...' : 'Obtener data del perfil'}
                     </button>
                   </div>
 
@@ -460,8 +523,12 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
 
                   {!!section.results.length && (
                     <div className="mt-6 grid grid-cols-1 gap-5">
-                      {section.results.map((profile) => (
-                        <div key={`${section.platform}-${profile.platform}-${profile.username}`} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
+                      {section.results.map((profile) => {
+                        const profileKey = getProfileKey(section.platform, profile);
+                        const analysisState = profileAnalyses[profileKey] || { loading: false, analysis: '', error: '' };
+
+                        return (
+                        <div key={profileKey} className="rounded-2xl border border-gray-100 p-5 bg-slate-50/70">
                           <div className="flex items-start justify-between gap-4 mb-4">
                             <div>
                               <p className="text-xs uppercase tracking-wider font-semibold text-emerald-700">{PLATFORM_LABELS[profile.platform]}</p>
@@ -497,6 +564,28 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                             </a>
                           )}
 
+                          <div className="mt-4">
+                            {analysisState.loading && (
+                              <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold">
+                                <Loader2 size={14} className="animate-spin" />
+                                Analizando perfil con Gemini...
+                              </div>
+                            )}
+
+                            {analysisState.error && (
+                              <div className="mt-3 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl">
+                                {analysisState.error}
+                              </div>
+                            )}
+
+                            {analysisState.analysis && (
+                              <div className="mt-3 bg-white border border-blue-100 rounded-xl p-4">
+                                <p className="text-xs uppercase tracking-wider font-semibold text-blue-700 mb-2">Análisis con Gemini</p>
+                                <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{analysisState.analysis}</p>
+                              </div>
+                            )}
+                          </div>
+
                           <details className="mt-4 bg-white border border-gray-200 rounded-xl p-3">
                             <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                               Ver todos los datos extraídos
@@ -506,7 +595,7 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                             </div>
                           </details>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </div>
