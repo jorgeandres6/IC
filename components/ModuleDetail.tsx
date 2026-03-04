@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { ModuleId, ScrapedCreatorProfile, SocialPlatform, SocialProfilesInput } from '../types';
 import { apiService } from '../services/api';
 import { 
@@ -581,7 +582,9 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
                             {analysisState.analysis && (
                               <div className="mt-3 bg-white border border-blue-100 rounded-xl p-4">
                                 <p className="text-xs uppercase tracking-wider font-semibold text-blue-700 mb-2">Análisis con Gemini</p>
-                                <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{analysisState.analysis}</p>
+                                <div className="text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-ul:my-2">
+                                  <ReactMarkdown>{analysisState.analysis}</ReactMarkdown>
+                                </div>
                               </div>
                             )}
                           </div>

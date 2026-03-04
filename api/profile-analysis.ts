@@ -59,18 +59,33 @@ export default async function handler(req: any, res: any) {
       profileUrl: profile.profileUrl
     };
 
-    const rawProfile = truncate(JSON.stringify(profile.raw || {}, null, 2), 12000);
+    const rawProfile = truncate(JSON.stringify(profile.raw || {}, null, 2), 32000);
 
     const prompt = [
       'Eres un analista de perfiles sociales para usuarios no técnicos.',
-      'Analiza el siguiente perfil y responde en español simple y accionable.',
-      'Estructura exacta requerida (con encabezados):',
-      '1) Resumen del perfil (2-3 líneas).',
-      '2) Fortalezas detectadas (máximo 5 bullets).',
-      '3) Riesgos o alertas (máximo 5 bullets).',
-      '4) Recomendaciones prácticas (máximo 6 bullets).',
-      '5) Tipo de actor probable y nivel de influencia (Bajo/Medio/Alto) con breve justificación.',
-      'No inventes datos. Si algo falta, dilo explícitamente.',
+      'Analiza el perfil en profundidad usando TODO el JSON disponible y responde en español claro y accionable.',
+      'Debes cubrir explícitamente los campos principales y subestructuras relevantes; no te quedes en una síntesis superficial.',
+      'Cuando menciones un hallazgo, referencia el dato con su ruta de campo entre paréntesis. Ejemplo: (legacy.followers_count).',
+      'Si falta un dato importante, dilo de forma explícita como "dato no disponible".',
+      'No inventes ni asumas información que no exista en el JSON.',
+      'Estructura exacta requerida (Markdown):',
+      '## 1) Resumen ejecutivo (4-6 líneas)',
+      '## 2) Lectura completa del perfil por secciones',
+      '- Identidad y posicionamiento',
+      '- Audiencia e influencia (incluye interpretación de seguidores, engagement estimado y señales de alcance)',
+      '- Actividad y consistencia de contenido',
+      '- Señales de credibilidad y reputación',
+      '- Riesgos reputacionales o de cumplimiento',
+      '## 3) Hallazgos clave basados en datos (8-12 bullets)',
+      '## 4) Alertas e inconsistencias de datos (si aplica)',
+      '## 5) Recomendaciones priorizadas',
+      '- Corto plazo (0-30 días)',
+      '- Mediano plazo (31-90 días)',
+      '- Largo plazo (90+ días)',
+      '## 6) Clasificación final del actor',
+      '- Tipo de actor probable',
+      '- Nivel de influencia: Bajo / Medio / Alto',
+      '- Justificación concreta con evidencias del JSON',
       '',
       `Perfil normalizado:\n${JSON.stringify(normalizedProfile, null, 2)}`,
       '',
@@ -102,8 +117,8 @@ export default async function handler(req: any, res: any) {
             }
           ],
           generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 900
+            temperature: 0.3,
+            maxOutputTokens: 1800
           }
         })
       });
