@@ -16,6 +16,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1JdgE_REfRJHCWJH43WO7pr
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+   - Optional: `GEMINI_MODEL` (e.g. `gemini-2.5-flash`) to override the default analysis model
 3. Configure Scrape Creators API variable in `.env.local`:
    - `SCRAPE_CREATORS_API_KEY` (Bearer token / API key, server-side)
 4. Run the app:
@@ -27,6 +28,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1JdgE_REfRJHCWJH43WO7pr
 2. Create a new Vercel project and import the repo.
 3. Configure environment variables:
    - `GEMINI_API_KEY` (same value you use locally)
+   - `GEMINI_MODEL` (optional)
    - `SCRAPE_CREATORS_API_KEY`
 4. Build settings (auto-detected, but listed here for clarity):
    - Build Command: `npm run build`

@@ -18,6 +18,8 @@ const truncate = (value: string, maxLength: number) => {
   return `${value.slice(0, maxLength)}\n...[truncado]`;
 };
 
+const DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
     res.status(204).end();
@@ -75,36 +77,65 @@ export default async function handler(req: any, res: any) {
       `Datos completos extraídos:\n${rawProfile}`
     ].join('\n');
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+    const configuredModel = process.env.GEMINI_MODEL?.trim();
+    const modelsToTry = configuredModel
+      ? [configuredModel, ...DEFAULT_GEMINI_MODELS.filter(model => model !== configuredModel)]
+      : DEFAULT_GEMINI_MODELS;
 
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }]
+    let parsed: any = {};
+    let lastStatus = 500;
+    let lastMessage = 'Gemini request failed.';
+
+    for (const model of modelsToTry) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+
+      const geminiResponse = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 900
           }
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 900
-        }
-      })
-    });
-
-    const rawText = await geminiResponse.text();
-    const parsed = safeParseJson(rawText, {});
-
-    if (!geminiResponse.ok) {
-      json(res, geminiResponse.status, {
-        message: typeof parsed === 'object' && parsed && 'error' in (parsed as Record<string, unknown>)
-          ? JSON.stringify((parsed as any).error)
-          : rawText || 'Gemini request failed.'
+        })
       });
+
+      const rawText = await geminiResponse.text();
+      parsed = safeParseJson(rawText, {});
+
+      if (geminiResponse.ok) {
+        lastStatus = 200;
+        lastMessage = '';
+        break;
+      }
+
+      const apiError = parsed?.error;
+      const apiMessage = typeof apiError?.message === 'string'
+        ? apiError.message
+        : (rawText || 'Gemini request failed.');
+
+      lastStatus = geminiResponse.status;
+      lastMessage = apiMessage;
+
+      const isModelUnavailable = geminiResponse.status === 404 && /model|no longer available|not found/i.test(apiMessage);
+      if (isModelUnavailable) {
+        continue;
+      }
+
+      json(res, geminiResponse.status, { message: apiMessage });
+      return;
+    }
+
+    if (lastStatus !== 200) {
+      json(res, lastStatus, { message: lastMessage });
       return;
     }
 
