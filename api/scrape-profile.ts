@@ -1,6 +1,11 @@
-import { SCRAPE_CREATORS_PROFILE_ENDPOINTS } from '../services/endpoints';
+type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'x';
 
-type SocialPlatform = keyof typeof SCRAPE_CREATORS_PROFILE_ENDPOINTS;
+const SCRAPE_CREATORS_PROFILE_ENDPOINTS: Record<SocialPlatform, string> = {
+  instagram: 'https://api.scrapecreators.com/v1/instagram/profile',
+  facebook: 'https://api.scrapecreators.com/v1/facebook/profile',
+  tiktok: 'https://api.scrapecreators.com/v1/tiktok/profile',
+  x: 'https://api.scrapecreators.com/v1/x/profile'
+};
 
 const isSocialPlatform = (value: unknown): value is SocialPlatform => {
   return typeof value === 'string' && value in SCRAPE_CREATORS_PROFILE_ENDPOINTS;
@@ -9,6 +14,14 @@ const isSocialPlatform = (value: unknown): value is SocialPlatform => {
 const json = (res: any, statusCode: number, payload: unknown) => {
   res.status(statusCode).setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(payload));
+};
+
+const safeParseJson = (value: string, fallback: unknown) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 };
 
 export default async function handler(req: any, res: any) {
@@ -29,7 +42,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = typeof req.body === 'string' ? safeParseJson(req.body, {}) : (req.body || {});
     const platform = body?.platform;
     const profile = typeof body?.profile === 'string' ? body.profile.trim() : '';
 
@@ -59,7 +72,7 @@ export default async function handler(req: any, res: any) {
     const rawText = await response.text();
     const contentType = response.headers.get('content-type') || '';
     const payload = contentType.includes('application/json')
-      ? JSON.parse(rawText || '{}')
+      ? safeParseJson(rawText || '{}', { message: rawText })
       : { message: rawText };
 
     if (!response.ok) {
@@ -69,6 +82,7 @@ export default async function handler(req: any, res: any) {
 
     json(res, 200, payload);
   } catch (error: any) {
+    console.error('scrape-profile error:', error);
     json(res, 500, { message: error?.message || 'Unexpected server error.' });
   }
 }
