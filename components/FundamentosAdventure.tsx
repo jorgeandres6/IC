@@ -1,7 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Shield, Sparkles, Swords, HeartPulse, RotateCcw, ChevronRight } from 'lucide-react';
 
-type GamePhase = 'intro' | 'decision' | 'outcome' | 'complete';
+type GamePhase = 'intro' | 'travel' | 'decision' | 'outcome' | 'complete';
+
+interface Point {
+  x: number;
+  y: number;
+}
 
 interface GameStats {
   estrategia: number;
@@ -24,6 +29,12 @@ interface Mission {
   options: MissionOption[];
 }
 
+interface MoveDirection {
+  dx: number;
+  dy: number;
+  label: string;
+}
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const INITIAL_STATS: GameStats = {
@@ -32,6 +43,34 @@ const INITIAL_STATS: GameStats = {
   reaccion: 30,
   energia: 100
 };
+
+const TILE_MAP = [
+  'WWWWWWWWW',
+  'W.......W',
+  'W.S...0.W',
+  'W.WWW...W',
+  'W...1...W',
+  'W...WWW.W',
+  'W..2...3W',
+  'W.......W',
+  'WWWWWWWWW'
+];
+
+const MISSION_TILES: Point[] = [
+  { x: 6, y: 2 },
+  { x: 4, y: 4 },
+  { x: 3, y: 6 },
+  { x: 7, y: 6 }
+];
+
+const START_TILE: Point = { x: 2, y: 2 };
+
+const DIRECTIONS: MoveDirection[] = [
+  { dx: 0, dy: -1, label: 'Arriba' },
+  { dx: -1, dy: 0, label: 'Izquierda' },
+  { dx: 1, dy: 0, label: 'Derecha' },
+  { dx: 0, dy: 1, label: 'Abajo' }
+];
 
 const MISSIONS: Mission[] = [
   {
@@ -134,8 +173,11 @@ const FundamentosAdventure: React.FC = () => {
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
   const [lastConsequence, setLastConsequence] = useState('');
   const [log, setLog] = useState<string[]>([]);
+  const [playerPos, setPlayerPos] = useState<Point>(START_TILE);
+  const [travelMessage, setTravelMessage] = useState('Explora el mapa para encontrar la primera mision.');
 
   const activeMission = MISSIONS[missionIndex];
+  const targetTile = MISSION_TILES[missionIndex];
 
   const score = useMemo(() => {
     return stats.estrategia + stats.etica + stats.reaccion + Math.floor(stats.energia / 2);
@@ -160,14 +202,18 @@ const FundamentosAdventure: React.FC = () => {
     setStats(INITIAL_STATS);
     setLastConsequence('');
     setLog([]);
+    setPlayerPos(START_TILE);
+    setTravelMessage('Explora el mapa para encontrar la primera mision.');
   };
 
   const startGame = () => {
-    setPhase('decision');
+    setPhase('travel');
     setMissionIndex(0);
     setStats(INITIAL_STATS);
     setLastConsequence('');
     setLog([]);
+    setPlayerPos(START_TILE);
+    setTravelMessage('Usa las flechas o el pad para llegar a Pueblo Brifing.');
   };
 
   const applyOption = (option: MissionOption) => {
@@ -193,8 +239,99 @@ const FundamentosAdventure: React.FC = () => {
       return;
     }
 
-    setMissionIndex((prev) => prev + 1);
-    setPhase('decision');
+    const nextMissionIndex = missionIndex + 1;
+    const nextMission = MISSIONS[nextMissionIndex];
+    setMissionIndex(nextMissionIndex);
+    setPhase('travel');
+    setTravelMessage(`Nueva ruta desbloqueada: llega a ${nextMission.place}.`);
+  };
+
+  const isWalkable = (nextPos: Point) => {
+    if (nextPos.y < 0 || nextPos.y >= TILE_MAP.length) {
+      return false;
+    }
+    const row = TILE_MAP[nextPos.y];
+    if (nextPos.x < 0 || nextPos.x >= row.length) {
+      return false;
+    }
+    return row[nextPos.x] !== 'W';
+  };
+
+  const movePlayer = (dx: number, dy: number) => {
+    if (phase !== 'travel') {
+      return;
+    }
+
+    setPlayerPos((prev) => {
+      const nextPos = { x: prev.x + dx, y: prev.y + dy };
+      if (!isWalkable(nextPos)) {
+        setTravelMessage('Hay un bloqueo en esa direccion. Busca otra ruta.');
+        return prev;
+      }
+
+      if (nextPos.x === targetTile.x && nextPos.y === targetTile.y) {
+        setPhase('decision');
+        setTravelMessage(`Encuentro activado en ${activeMission.place}.`);
+      }
+
+      return nextPos;
+    });
+  };
+
+  useEffect(() => {
+    if (phase !== 'travel') {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        movePlayer(0, -1);
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        movePlayer(0, 1);
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        movePlayer(-1, 0);
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        movePlayer(1, 0);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [phase, targetTile.x, targetTile.y, activeMission.place]);
+
+  const getTileClassName = (x: number, y: number) => {
+    const tile = TILE_MAP[y][x];
+    const isPlayer = playerPos.x === x && playerPos.y === y;
+    const isTarget = targetTile && targetTile.x === x && targetTile.y === y && phase !== 'complete';
+
+    if (isPlayer) {
+      return 'bg-[#3a86ff]';
+    }
+
+    if (tile === 'W') {
+      return 'bg-[#3d405b]';
+    }
+
+    if (isTarget && phase === 'travel') {
+      return 'bg-[#ffbe0b] animate-pulse';
+    }
+
+    if (tile === '0' || tile === '1' || tile === '2' || tile === '3') {
+      const tileMission = Number(tile);
+      if (tileMission < missionIndex || phase === 'complete') {
+        return 'bg-[#80ed99]';
+      }
+      return 'bg-[#f7b267]';
+    }
+
+    return 'bg-[#9cd08f]';
   };
 
   const StatBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
@@ -245,6 +382,61 @@ const FundamentosAdventure: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-4 p-4 bg-white border-2 border-slate-900 rounded-xl">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-xs uppercase font-bold tracking-widest text-slate-500">Zona de exploracion</p>
+                <p className="text-[11px] font-bold text-slate-600">Movimiento: teclado y pad</p>
+              </div>
+
+              <div className="grid gap-1 w-fit mx-auto">
+                {TILE_MAP.map((row, y) => (
+                  <div key={`row-${y}`} className="flex gap-1">
+                    {row.split('').map((_, x) => (
+                      <div
+                        key={`tile-${x}-${y}`}
+                        className={`w-5 h-5 border border-slate-800/30 rounded-[2px] transition-colors ${getTileClassName(x, y)}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
+                <button
+                  onClick={() => movePlayer(0, -1)}
+                  disabled={phase !== 'travel'}
+                  className="col-start-2 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
+                >
+                  Arriba
+                </button>
+                <button
+                  onClick={() => movePlayer(-1, 0)}
+                  disabled={phase !== 'travel'}
+                  className="col-start-1 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
+                >
+                  Izq
+                </button>
+                <button
+                  onClick={() => movePlayer(1, 0)}
+                  disabled={phase !== 'travel'}
+                  className="col-start-3 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
+                >
+                  Der
+                </button>
+                <button
+                  onClick={() => movePlayer(0, 1)}
+                  disabled={phase !== 'travel'}
+                  className="col-start-2 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
+                >
+                  Abajo
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-700 mt-4 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2">
+                {travelMessage}
+              </p>
             </div>
 
             <div className="mt-4 p-4 bg-white border-2 border-slate-900 rounded-xl">
@@ -302,6 +494,19 @@ const FundamentosAdventure: React.FC = () => {
                 Iniciar aventura
                 <ChevronRight size={18} />
               </button>
+            </div>
+          )}
+
+          {phase === 'travel' && (
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-slate-900 bg-[#fff4de] text-xs font-bold uppercase tracking-wider text-slate-700">
+                <Swords size={14} />
+                Exploracion activa
+              </div>
+              <h4 className="text-2xl font-black text-slate-900">Avanza hasta {activeMission.place}</h4>
+              <p className="text-slate-700">
+                Recorre el mapa hasta la zona marcada en amarillo para activar el encuentro estrategico. Si quieres un flujo estilo RPG, esta fase simula el desplazamiento entre ciudades.
+              </p>
             </div>
           )}
 
