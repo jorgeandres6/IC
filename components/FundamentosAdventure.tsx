@@ -4,6 +4,7 @@ import { Shield, Sparkles, Swords, HeartPulse, RotateCcw, ChevronRight, MapPin }
 
 type GamePhase = 'intro' | 'travel' | 'decision' | 'outcome' | 'complete';
 type TileType = 'F' | 'G' | 'R' | 'P' | 'W' | 'B' | '.' | 'S' | '0' | '1' | '2' | '3';
+type Facing = 'up' | 'down' | 'left' | 'right';
 
 interface Point {
   x: number;
@@ -43,6 +44,185 @@ interface HumanSpriteStyle {
   cap?: string;
   accent?: string;
 }
+
+const TRAINER_FRAMES: Record<Facing, string[][]> = {
+  down: [
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchsschk..',
+      '..kssssssk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..konnn.ok..',
+      '..kr.r..rk..',
+      '...k....k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchsschk..',
+      '..kssssssk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..konnnnok..',
+      '..krr..rrk..',
+      '...k....k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchsschk..',
+      '..kssssssk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..ko.nnnok..',
+      '..kr..r.rk..',
+      '...k....k...'
+    ]
+  ],
+  up: [
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchhhchk..',
+      '..khhhhhhk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..konnn.ok..',
+      '..kr.r..rk..',
+      '...k....k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchhhchk..',
+      '..khhhhhhk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..konnnnok..',
+      '..krr..rrk..',
+      '...k....k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwck...',
+      '..kchhhchk..',
+      '..khhhhhhk..',
+      '...kobbok...',
+      '..kobbbbok..',
+      '..kobggbok..',
+      '...konnok...',
+      '..ko.nnnok..',
+      '..kr..r.rk..',
+      '...k....k...'
+    ]
+  ],
+  left: [
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '..kccwwck...',
+      '..kchhssk...',
+      '..ksssssk...',
+      '..kobbbok...',
+      '..kobbbbk...',
+      '..kobgobk...',
+      '..konnnk...',
+      '..konn.ok...',
+      '..kr.r.k....',
+      '...k...k....'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '..kccwwck...',
+      '..kchhssk...',
+      '..ksssssk...',
+      '..kobbbok...',
+      '..kobbbbk...',
+      '..kobgobk...',
+      '..konnnk...',
+      '..konnnk....',
+      '..krr.rk....',
+      '...k...k....'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '..kccwwck...',
+      '..kchhssk...',
+      '..ksssssk...',
+      '..kobbbok...',
+      '..kobbbbk...',
+      '..kobgobk...',
+      '..konnnk...',
+      '..ko.nnk....',
+      '..kr.rrk....',
+      '...k...k....'
+    ]
+  ],
+  right: [
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwcck..',
+      '...ksshhck..',
+      '...ksssssk..',
+      '...kobbbok..',
+      '...kbbbbok..',
+      '...kbogbok..',
+      '...knnnok..',
+      '...ko.nnok..',
+      '....k.r.rk..',
+      '....k...k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwcck..',
+      '...ksshhck..',
+      '...ksssssk..',
+      '...kobbbok..',
+      '...kbbbbok..',
+      '...kbogbok..',
+      '...knnnok..',
+      '....knnnok..',
+      '....kr.rrk..',
+      '....k...k...'
+    ],
+    [
+      '....kkkk....',
+      '...kcccck...',
+      '...kcwwcck..',
+      '...ksshhck..',
+      '...ksssssk..',
+      '...kobbbok..',
+      '...kbbbbok..',
+      '...kbogbok..',
+      '...knnnok..',
+      '....knn.ok..',
+      '....krr.rk..',
+      '....k...k...'
+    ]
+  ]
+};
 
 const TILE_MAP: string[] = [
   'FFFFFFFFFFFFFF',
@@ -186,12 +366,14 @@ const toPixels = (point: Point) => ({
 class AdventureScene extends Phaser.Scene {
   private hooks: SceneHooks;
   private missionTarget: Point;
-  private player!: Phaser.GameObjects.Container;
+  private player!: Phaser.GameObjects.Image;
   private targetGlow?: Phaser.GameObjects.Arc;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private moving = false;
   private tilePos: Point = { ...START_TILE };
   private travelEnabled = false;
+  private facing: Facing = 'down';
+  private walkToggle = false;
 
   constructor(hooks: SceneHooks, missionTarget: Point) {
     super({ key: 'adventure-scene' });
@@ -204,14 +386,17 @@ class AdventureScene extends Phaser.Scene {
     this.drawMap();
     this.drawNPCs();
 
-    this.player = this.createHumanSprite({
+    this.registerCharacterTextures('player', {
       outfit: '#1d4ed8',
       hair: '#111827',
       cap: '#dc2626',
       accent: '#f8fafc'
     });
+
     const startPx = toPixels(START_TILE);
-    this.player.setPosition(startPx.x, startPx.y);
+    this.player = this.add.image(startPx.x, startPx.y, this.frameKey('player', 'down', 1));
+    this.player.setOrigin(0.5, 0.86);
+    this.player.setDepth(8);
     this.tilePos = { ...START_TILE };
 
     this.targetGlow = this.add.circle(0, 0, TILE_SIZE * 0.33, 0xfacc15, 0.55).setDepth(4);
@@ -274,6 +459,9 @@ class AdventureScene extends Phaser.Scene {
     }
 
     const nextPx = toPixels(next);
+    this.facing = this.getFacing(dx, dy);
+    this.walkToggle = !this.walkToggle;
+    this.setPlayerFrame(this.facing, this.walkToggle ? 0 : 2);
     this.moving = true;
 
     this.tweens.add({
@@ -285,6 +473,7 @@ class AdventureScene extends Phaser.Scene {
       onComplete: () => {
         this.tilePos = next;
         this.moving = false;
+        this.setPlayerFrame(this.facing, 1);
         this.hooks.onMove();
 
         if (this.tilePos.x === this.missionTarget.x && this.tilePos.y === this.missionTarget.y) {
@@ -296,7 +485,7 @@ class AdventureScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.player,
-      scaleY: { from: 1, to: 0.96 },
+      scaleY: { from: 1, to: 0.95 },
       duration: 55,
       yoyo: true,
       ease: 'Sine.InOut'
@@ -316,6 +505,8 @@ class AdventureScene extends Phaser.Scene {
     this.tilePos = { ...START_TILE };
     const startPx = toPixels(START_TILE);
     this.player.setPosition(startPx.x, startPx.y);
+    this.facing = 'down';
+    this.setPlayerFrame('down', 1);
   }
 
   private updateTargetMarker(): void {
@@ -374,59 +565,70 @@ class AdventureScene extends Phaser.Scene {
       { x: 11, y: 6, style: { outfit: '#2563eb', hair: '#7c2d12', cap: '#0f172a', accent: '#dbeafe' } }
     ];
 
-    npcs.forEach((npc) => {
-      const sprite = this.createHumanSprite(npc.style);
+    npcs.forEach((npc, index) => {
+      const key = `npc-${index}`;
+      this.registerCharacterTextures(key, npc.style);
       const npcPos = toPixels({ x: npc.x, y: npc.y });
-      sprite.setPosition(npcPos.x, npcPos.y);
+      const sprite = this.add.image(npcPos.x, npcPos.y, this.frameKey(key, 'down', 1));
+      sprite.setOrigin(0.5, 0.86);
       sprite.setDepth(7);
     });
   }
 
-  private createHumanSprite(style: HumanSpriteStyle): Phaser.GameObjects.Container {
-    const container = this.add.container(0, 0);
+  private frameKey(prefix: string, facing: Facing, frame: number): string {
+    return `${prefix}-${facing}-${frame}`;
+  }
 
-    const pixel = 2;
-    const skin = 0xfdba74;
-    const outline = 0x111827;
-    const outfitColor = Phaser.Display.Color.HexStringToColor(style.outfit).color;
-    const hairColor = Phaser.Display.Color.HexStringToColor(style.hair).color;
-    const capColor = style.cap ? Phaser.Display.Color.HexStringToColor(style.cap).color : null;
-    const accentColor = style.accent ? Phaser.Display.Color.HexStringToColor(style.accent).color : 0xe2e8f0;
-    const shoes = 0x1f2937;
+  private normalizeFrame(frame: string[]): string[] {
+    return frame.map((row) => row.padEnd(12, '.').slice(0, 12));
+  }
 
-    const block = (x: number, y: number, w: number, h: number, fill: number) => {
-      const r = this.add.rectangle(x, y, w, h, fill, 1).setOrigin(0.5, 0.5);
-      container.add(r);
+  private registerCharacterTextures(prefix: string, style: HumanSpriteStyle): void {
+    const palette = {
+      '.': '#00000000',
+      k: '#111827',
+      c: style.cap ?? '#b91c1c',
+      w: '#e2e8f0',
+      h: style.hair,
+      s: '#fdba74',
+      o: style.outfit,
+      b: style.outfit,
+      g: style.accent ?? '#f8fafc',
+      n: '#334155',
+      r: '#7f1d1d'
     };
 
-    // Shadow for depth in top-down perspective.
-    const shadow = this.add.ellipse(0, 13, 18, 6, 0x000000, 0.2);
-    container.add(shadow);
+    (Object.keys(TRAINER_FRAMES) as Facing[]).forEach((facing) => {
+      TRAINER_FRAMES[facing].forEach((rawFrame, index) => {
+        const key = this.frameKey(prefix, facing, index);
+        if (this.textures.exists(key)) {
+          return;
+        }
 
-    // Pixel-art head area.
-    block(0, -11, 16 * pixel / 2, 3 * pixel / 2, outline);
-    block(0, -9, 14 * pixel / 2, 3 * pixel / 2, capColor ?? hairColor);
-    block(0, -7, 18 * pixel / 2, 2 * pixel / 2, capColor ?? hairColor);
-    block(0, -4, 12 * pixel / 2, 5 * pixel / 2, skin);
-    block(-4, -5, 2 * pixel / 2, 2 * pixel / 2, hairColor);
-    block(4, -5, 2 * pixel / 2, 2 * pixel / 2, hairColor);
+        this.textures.generate(key, {
+          data: this.normalizeFrame(rawFrame),
+          pixelWidth: 3,
+          palette
+        });
+      });
+    });
+  }
 
-    // Torso and shoulders.
-    block(0, 1, 14 * pixel / 2, 7 * pixel / 2, outline);
-    block(0, 1, 12 * pixel / 2, 5 * pixel / 2, outfitColor);
-    block(0, 3, 3 * pixel / 2, 4 * pixel / 2, accentColor);
-    block(-6, 2, 2 * pixel / 2, 4 * pixel / 2, skin);
-    block(6, 2, 2 * pixel / 2, 4 * pixel / 2, skin);
+  private setPlayerFrame(facing: Facing, frame: number): void {
+    this.player.setTexture(this.frameKey('player', facing, frame));
+  }
 
-    // Legs and shoes.
-    block(-2, 7, 3 * pixel / 2, 4 * pixel / 2, 0x374151);
-    block(2, 7, 3 * pixel / 2, 4 * pixel / 2, 0x374151);
-    block(-2, 10, 3 * pixel / 2, 2 * pixel / 2, shoes);
-    block(2, 10, 3 * pixel / 2, 2 * pixel / 2, shoes);
-
-    container.setDepth(8);
-    container.setScale(1.8);
-    return container;
+  private getFacing(dx: number, dy: number): Facing {
+    if (dx === -1) {
+      return 'left';
+    }
+    if (dx === 1) {
+      return 'right';
+    }
+    if (dy === -1) {
+      return 'up';
+    }
+    return 'down';
   }
 
   private getTileColor(tile: TileType): number {
