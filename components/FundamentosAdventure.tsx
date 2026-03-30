@@ -232,7 +232,7 @@ const HERO_STYLE: CharacterStyle = {
 };
 
 class CharacterScene extends Phaser.Scene {
-  private hero!: Phaser.GameObjects.Image;
+  private hero?: Phaser.GameObjects.Image;
   private facing: Facing = 'down';
   private animating = false;
 
@@ -263,11 +263,14 @@ class CharacterScene extends Phaser.Scene {
 
   public setFacing(facing: Facing): void {
     this.facing = facing;
+    if (!this.hero) {
+      return;
+    }
     this.hero.setTexture(this.frameKey('hero', facing, 1));
   }
 
   public previewWalk(): void {
-    if (this.animating) {
+    if (this.animating || !this.hero) {
       return;
     }
 
@@ -276,6 +279,9 @@ class CharacterScene extends Phaser.Scene {
 
     frames.forEach((frame, index) => {
       this.time.delayedCall(index * 110, () => {
+        if (!this.hero) {
+          return;
+        }
         this.hero.setTexture(this.frameKey('hero', this.facing, frame));
         if (index === frames.length - 1) {
           this.animating = false;
@@ -311,7 +317,7 @@ class CharacterScene extends Phaser.Scene {
       g: style.shirt,
       n: style.pants,
       r: style.shoes
-    };
+    } as unknown as Phaser.Types.Create.Palette;
 
     (Object.keys(framesByFacing) as Facing[]).forEach((facing) => {
       framesByFacing[facing].forEach((rawFrame, index) => {
