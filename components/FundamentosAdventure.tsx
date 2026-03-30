@@ -37,6 +37,13 @@ interface SceneHooks {
   onMove: () => void;
 }
 
+interface HumanSpriteStyle {
+  outfit: string;
+  hair: string;
+  cap?: string;
+  accent?: string;
+}
+
 const TILE_MAP: string[] = [
   'FFFFFFFFFFFFFF',
   'FGRRRRPGRBBBFF',
@@ -197,7 +204,12 @@ class AdventureScene extends Phaser.Scene {
     this.drawMap();
     this.drawNPCs();
 
-    this.player = this.createHumanSprite('#1d4ed8', '#0f172a');
+    this.player = this.createHumanSprite({
+      outfit: '#1d4ed8',
+      hair: '#111827',
+      cap: '#dc2626',
+      accent: '#f8fafc'
+    });
     const startPx = toPixels(START_TILE);
     this.player.setPosition(startPx.x, startPx.y);
     this.tilePos = { ...START_TILE };
@@ -281,6 +293,14 @@ class AdventureScene extends Phaser.Scene {
         }
       }
     });
+
+    this.tweens.add({
+      targets: this.player,
+      scaleY: { from: 1, to: 0.96 },
+      duration: 55,
+      yoyo: true,
+      ease: 'Sine.InOut'
+    });
   }
 
   public setTravelEnabled(enabled: boolean): void {
@@ -348,30 +368,64 @@ class AdventureScene extends Phaser.Scene {
 
   private drawNPCs(): void {
     const npcs = [
-      { x: 5, y: 2, shirt: '#f97316', hair: '#3f3f46' },
-      { x: 7, y: 4, shirt: '#16a34a', hair: '#1f2937' },
-      { x: 3, y: 7, shirt: '#9333ea', hair: '#312e81' },
-      { x: 11, y: 6, shirt: '#2563eb', hair: '#7c2d12' }
+      { x: 5, y: 2, style: { outfit: '#f97316', hair: '#3f3f46', accent: '#fff7ed' } },
+      { x: 7, y: 4, style: { outfit: '#16a34a', hair: '#1f2937', accent: '#dcfce7' } },
+      { x: 3, y: 7, style: { outfit: '#9333ea', hair: '#312e81', accent: '#ede9fe' } },
+      { x: 11, y: 6, style: { outfit: '#2563eb', hair: '#7c2d12', cap: '#0f172a', accent: '#dbeafe' } }
     ];
 
     npcs.forEach((npc) => {
-      const sprite = this.createHumanSprite(npc.shirt, npc.hair);
+      const sprite = this.createHumanSprite(npc.style);
       const npcPos = toPixels({ x: npc.x, y: npc.y });
       sprite.setPosition(npcPos.x, npcPos.y);
       sprite.setDepth(7);
     });
   }
 
-  private createHumanSprite(shirt: string, hair: string): Phaser.GameObjects.Container {
+  private createHumanSprite(style: HumanSpriteStyle): Phaser.GameObjects.Container {
     const container = this.add.container(0, 0);
-    const head = this.add.circle(0, -8, 6, 0xfdba74, 1).setStrokeStyle(1, 0x78350f, 0.35);
-    const hairTop = this.add.rectangle(0, -13, 12, 5, Phaser.Display.Color.HexStringToColor(hair).color, 1);
-    const body = this.add.rectangle(0, 4, 12, 13, Phaser.Display.Color.HexStringToColor(shirt).color, 1).setStrokeStyle(1, 0x0f172a, 0.2);
-    const legLeft = this.add.rectangle(-3, 12, 3, 6, 0x374151, 1);
-    const legRight = this.add.rectangle(3, 12, 3, 6, 0x374151, 1);
 
-    container.add([head, hairTop, body, legLeft, legRight]);
+    const pixel = 2;
+    const skin = 0xfdba74;
+    const outline = 0x111827;
+    const outfitColor = Phaser.Display.Color.HexStringToColor(style.outfit).color;
+    const hairColor = Phaser.Display.Color.HexStringToColor(style.hair).color;
+    const capColor = style.cap ? Phaser.Display.Color.HexStringToColor(style.cap).color : null;
+    const accentColor = style.accent ? Phaser.Display.Color.HexStringToColor(style.accent).color : 0xe2e8f0;
+    const shoes = 0x1f2937;
+
+    const block = (x: number, y: number, w: number, h: number, fill: number) => {
+      const r = this.add.rectangle(x, y, w, h, fill, 1).setOrigin(0.5, 0.5);
+      container.add(r);
+    };
+
+    // Shadow for depth in top-down perspective.
+    const shadow = this.add.ellipse(0, 13, 18, 6, 0x000000, 0.2);
+    container.add(shadow);
+
+    // Pixel-art head area.
+    block(0, -11, 16 * pixel / 2, 3 * pixel / 2, outline);
+    block(0, -9, 14 * pixel / 2, 3 * pixel / 2, capColor ?? hairColor);
+    block(0, -7, 18 * pixel / 2, 2 * pixel / 2, capColor ?? hairColor);
+    block(0, -4, 12 * pixel / 2, 5 * pixel / 2, skin);
+    block(-4, -5, 2 * pixel / 2, 2 * pixel / 2, hairColor);
+    block(4, -5, 2 * pixel / 2, 2 * pixel / 2, hairColor);
+
+    // Torso and shoulders.
+    block(0, 1, 14 * pixel / 2, 7 * pixel / 2, outline);
+    block(0, 1, 12 * pixel / 2, 5 * pixel / 2, outfitColor);
+    block(0, 3, 3 * pixel / 2, 4 * pixel / 2, accentColor);
+    block(-6, 2, 2 * pixel / 2, 4 * pixel / 2, skin);
+    block(6, 2, 2 * pixel / 2, 4 * pixel / 2, skin);
+
+    // Legs and shoes.
+    block(-2, 7, 3 * pixel / 2, 4 * pixel / 2, 0x374151);
+    block(2, 7, 3 * pixel / 2, 4 * pixel / 2, 0x374151);
+    block(-2, 10, 3 * pixel / 2, 2 * pixel / 2, shoes);
+    block(2, 10, 3 * pixel / 2, 2 * pixel / 2, shoes);
+
     container.setDepth(8);
+    container.setScale(1.8);
     return container;
   }
 
