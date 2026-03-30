@@ -39,6 +39,7 @@ body {
 .phaser-host {
   width: 100%;
   max-width: 100%;
+  min-height: 300px;
   margin: 0 auto;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -47,8 +48,10 @@ body {
 .phaser-host canvas {
   display: block;
   width: 100% !important;
+  max-width: 720px;
   height: auto !important;
   border-radius: 6px;
+  margin: 0 auto;
 }
 
 .retro-map-wrap {

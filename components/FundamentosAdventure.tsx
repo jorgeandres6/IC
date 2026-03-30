@@ -240,8 +240,11 @@ const TILE_MAP: string[] = [
 const MAP_ROWS = TILE_MAP.length;
 const MAP_COLS = TILE_MAP[0].length;
 const TILE_SIZE = 40;
-const VIEW_WIDTH = MAP_COLS * TILE_SIZE;
-const VIEW_HEIGHT = MAP_ROWS * TILE_SIZE;
+const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
+const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
+const GAME_WIDTH = 420;
+const GAME_HEIGHT = 300;
+const CAMERA_ZOOM = 1.75;
 
 const MISSION_TILES: Point[] = [
   { x: 10, y: 2 },
@@ -413,8 +416,11 @@ class AdventureScene extends Phaser.Scene {
     });
 
     this.cursors = this.input.keyboard?.createCursorKeys();
-    this.cameras.main.setBounds(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
-    this.cameras.main.setZoom(1);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
+    this.cameras.main.setDeadzone(56, 44);
+    this.cameras.main.setZoom(CAMERA_ZOOM);
+    this.cameras.main.roundPixels = true;
   }
 
   update(): void {
@@ -716,8 +722,8 @@ const FundamentosAdventure: React.FC = () => {
 
     const game = new Phaser.Game({
       type: Phaser.AUTO,
-      width: VIEW_WIDTH,
-      height: VIEW_HEIGHT,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
       parent: gameHostRef.current,
       backgroundColor: '#9fd0ff',
       pixelArt: true,
