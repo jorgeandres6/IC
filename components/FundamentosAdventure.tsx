@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Phaser from 'phaser';
 import { Shield, Sparkles, Swords, HeartPulse, RotateCcw, ChevronRight, MapPin } from 'lucide-react';
 
 type GamePhase = 'intro' | 'travel' | 'decision' | 'outcome' | 'complete';
-
 type TileType = 'F' | 'G' | 'R' | 'P' | 'W' | 'B' | '.' | 'S' | '0' | '1' | '2' | '3';
 
 interface Point {
@@ -31,14 +31,41 @@ interface Mission {
   options: MissionOption[];
 }
 
-interface Npc {
-  name: string;
-  role: string;
-  x: number;
-  y: number;
-  shirt: string;
-  hair: string;
+interface SceneHooks {
+  onReach: () => void;
+  onBlocked: () => void;
+  onMove: () => void;
 }
+
+const TILE_MAP: string[] = [
+  'FFFFFFFFFFFFFF',
+  'FGRRRRPGRBBBFF',
+  'FGS...R....0FF',
+  'FGRRRRGGGRRRFF',
+  'F..1..R.P...FF',
+  'FBRR..RRRRRBFF',
+  'F..G..2..G..FF',
+  'FWWG.RRR.G3.FF',
+  'F...RRR.....FF',
+  'FFFFFFFFFFFFFF'
+];
+
+const MAP_ROWS = TILE_MAP.length;
+const MAP_COLS = TILE_MAP[0].length;
+const TILE_SIZE = 40;
+const VIEW_WIDTH = MAP_COLS * TILE_SIZE;
+const VIEW_HEIGHT = MAP_ROWS * TILE_SIZE;
+
+const MISSION_TILES: Point[] = [
+  { x: 10, y: 2 },
+  { x: 3, y: 4 },
+  { x: 6, y: 6 },
+  { x: 10, y: 7 }
+];
+
+const START_TILE: Point = { x: 2, y: 2 };
+
+const BLOCKED = new Set<TileType>(['F', 'W', 'B']);
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -48,38 +75,6 @@ const INITIAL_STATS: GameStats = {
   reaccion: 30,
   energia: 100
 };
-
-const TILE_MAP: string[] = [
-  'FFFFFFFFFFF',
-  'FGRRRPGRBBF',
-  'FGS..R...0F',
-  'FGRRRGGGRRF',
-  'F..1.R.P..F',
-  'FBRR.RRRRBF',
-  'F..G.2.G..F',
-  'FWWG.R.G3.F',
-  'F...RRR...F',
-  'FFFFFFFFFFF'
-];
-
-const MAP_ROWS = TILE_MAP.length;
-const MAP_COLS = TILE_MAP[0].length;
-
-const MISSION_TILES: Point[] = [
-  { x: 9, y: 2 },
-  { x: 3, y: 4 },
-  { x: 5, y: 6 },
-  { x: 8, y: 7 }
-];
-
-const START_TILE: Point = { x: 2, y: 2 };
-
-const NPCS: Npc[] = [
-  { name: 'Lina', role: 'Periodista', x: 4, y: 2, shirt: '#f97316', hair: '#3f3f46' },
-  { name: 'Mario', role: 'Dirigente vecinal', x: 6, y: 4, shirt: '#2563eb', hair: '#7c2d12' },
-  { name: 'Rocio', role: 'Analista junior', x: 2, y: 6, shirt: '#16a34a', hair: '#1e293b' },
-  { name: 'Iker', role: 'Vocero', x: 7, y: 8, shirt: '#9333ea', hair: '#312e81' }
-];
 
 const MISSIONS: Mission[] = [
   {
@@ -176,7 +171,236 @@ const MISSIONS: Mission[] = [
   }
 ];
 
-const WALKABLE_TILES = new Set<TileType>(['G', 'R', 'P', '.', 'S', '0', '1', '2', '3']);
+const toPixels = (point: Point) => ({
+  x: point.x * TILE_SIZE + TILE_SIZE / 2,
+  y: point.y * TILE_SIZE + TILE_SIZE / 2
+});
+
+class AdventureScene extends Phaser.Scene {
+  private hooks: SceneHooks;
+  private missionTarget: Point;
+  private player!: Phaser.GameObjects.Container;
+  private targetGlow?: Phaser.GameObjects.Arc;
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private moving = false;
+  private tilePos: Point = { ...START_TILE };
+  private travelEnabled = false;
+
+  constructor(hooks: SceneHooks, missionTarget: Point) {
+    super({ key: 'adventure-scene' });
+    this.hooks = hooks;
+    this.missionTarget = missionTarget;
+  }
+
+  create(): void {
+    this.cameras.main.setBackgroundColor('#9fd0ff');
+    this.drawMap();
+    this.drawNPCs();
+
+    this.player = this.createHumanSprite('#1d4ed8', '#0f172a');
+    const startPx = toPixels(START_TILE);
+    this.player.setPosition(startPx.x, startPx.y);
+    this.tilePos = { ...START_TILE };
+
+    this.targetGlow = this.add.circle(0, 0, TILE_SIZE * 0.33, 0xfacc15, 0.55).setDepth(4);
+    this.targetGlow.setStrokeStyle(2, 0x92400e, 0.9);
+
+    this.updateTargetMarker();
+
+    this.tweens.add({
+      targets: this.targetGlow,
+      alpha: { from: 0.35, to: 0.9 },
+      duration: 650,
+      yoyo: true,
+      repeat: -1
+    });
+
+    this.cursors = this.input.keyboard?.createCursorKeys();
+    this.cameras.main.setBounds(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    this.cameras.main.setZoom(1);
+  }
+
+  update(): void {
+    if (!this.travelEnabled || this.moving || !this.cursors) {
+      return;
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
+      this.tryMove(0, -1);
+      return;
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down!)) {
+      this.tryMove(0, 1);
+      return;
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left!)) {
+      this.tryMove(-1, 0);
+      return;
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right!)) {
+      this.tryMove(1, 0);
+    }
+  }
+
+  public tryMove(dx: number, dy: number): void {
+    if (!this.travelEnabled || this.moving) {
+      return;
+    }
+
+    const next: Point = {
+      x: this.tilePos.x + dx,
+      y: this.tilePos.y + dy
+    };
+
+    if (!this.isWalkable(next)) {
+      this.hooks.onBlocked();
+      this.cameras.main.shake(70, 0.0035);
+      return;
+    }
+
+    const nextPx = toPixels(next);
+    this.moving = true;
+
+    this.tweens.add({
+      targets: this.player,
+      x: nextPx.x,
+      y: nextPx.y,
+      duration: 110,
+      ease: 'Quad.Out',
+      onComplete: () => {
+        this.tilePos = next;
+        this.moving = false;
+        this.hooks.onMove();
+
+        if (this.tilePos.x === this.missionTarget.x && this.tilePos.y === this.missionTarget.y) {
+          this.travelEnabled = false;
+          this.hooks.onReach();
+        }
+      }
+    });
+  }
+
+  public setTravelEnabled(enabled: boolean): void {
+    this.travelEnabled = enabled;
+  }
+
+  public setTarget(point: Point): void {
+    this.missionTarget = point;
+    this.updateTargetMarker();
+  }
+
+  public resetToStart(): void {
+    this.tilePos = { ...START_TILE };
+    const startPx = toPixels(START_TILE);
+    this.player.setPosition(startPx.x, startPx.y);
+  }
+
+  private updateTargetMarker(): void {
+    if (!this.targetGlow) {
+      return;
+    }
+
+    const targetPx = toPixels(this.missionTarget);
+    this.targetGlow.setPosition(targetPx.x, targetPx.y);
+  }
+
+  private isWalkable(point: Point): boolean {
+    if (point.x < 0 || point.x >= MAP_COLS || point.y < 0 || point.y >= MAP_ROWS) {
+      return false;
+    }
+
+    const tile = TILE_MAP[point.y][point.x] as TileType;
+    return !BLOCKED.has(tile);
+  }
+
+  private drawMap(): void {
+    for (let y = 0; y < MAP_ROWS; y += 1) {
+      for (let x = 0; x < MAP_COLS; x += 1) {
+        const tile = TILE_MAP[y][x] as TileType;
+        const px = x * TILE_SIZE;
+        const py = y * TILE_SIZE;
+        const rect = this.add.rectangle(px + TILE_SIZE / 2, py + TILE_SIZE / 2, TILE_SIZE, TILE_SIZE, this.getTileColor(tile));
+        rect.setStrokeStyle(1, 0x0f172a, 0.2);
+
+        if (tile === 'R') {
+          this.add.rectangle(px + TILE_SIZE / 2, py + TILE_SIZE / 2, TILE_SIZE * 0.8, 4, 0xf8fafc, 0.45);
+        }
+
+        if (tile === 'B') {
+          this.add.rectangle(px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 8, TILE_SIZE * 0.65, TILE_SIZE * 0.35, 0xfef2f2, 0.85);
+        }
+      }
+    }
+
+    MISSION_TILES.forEach((point, index) => {
+      const label = this.add.text(point.x * TILE_SIZE + 8, point.y * TILE_SIZE + 2, `M${index + 1}`, {
+        color: '#0f172a',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        fontStyle: 'bold'
+      });
+      label.setDepth(5);
+    });
+  }
+
+  private drawNPCs(): void {
+    const npcs = [
+      { x: 5, y: 2, shirt: '#f97316', hair: '#3f3f46' },
+      { x: 7, y: 4, shirt: '#16a34a', hair: '#1f2937' },
+      { x: 3, y: 7, shirt: '#9333ea', hair: '#312e81' },
+      { x: 11, y: 6, shirt: '#2563eb', hair: '#7c2d12' }
+    ];
+
+    npcs.forEach((npc) => {
+      const sprite = this.createHumanSprite(npc.shirt, npc.hair);
+      const npcPos = toPixels({ x: npc.x, y: npc.y });
+      sprite.setPosition(npcPos.x, npcPos.y);
+      sprite.setDepth(7);
+    });
+  }
+
+  private createHumanSprite(shirt: string, hair: string): Phaser.GameObjects.Container {
+    const container = this.add.container(0, 0);
+    const head = this.add.circle(0, -8, 6, 0xfdba74, 1).setStrokeStyle(1, 0x78350f, 0.35);
+    const hairTop = this.add.rectangle(0, -13, 12, 5, Phaser.Display.Color.HexStringToColor(hair).color, 1);
+    const body = this.add.rectangle(0, 4, 12, 13, Phaser.Display.Color.HexStringToColor(shirt).color, 1).setStrokeStyle(1, 0x0f172a, 0.2);
+    const legLeft = this.add.rectangle(-3, 12, 3, 6, 0x374151, 1);
+    const legRight = this.add.rectangle(3, 12, 3, 6, 0x374151, 1);
+
+    container.add([head, hairTop, body, legLeft, legRight]);
+    container.setDepth(8);
+    return container;
+  }
+
+  private getTileColor(tile: TileType): number {
+    switch (tile) {
+      case 'F':
+        return 0x166534;
+      case 'G':
+        return 0x86efac;
+      case 'R':
+        return 0xa8a29e;
+      case 'P':
+        return 0xdbeafe;
+      case 'W':
+        return 0x0ea5e9;
+      case 'B':
+        return 0xef4444;
+      case 'S':
+        return 0x3b82f6;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+        return 0xf59e0b;
+      default:
+        return 0xf8fafc;
+    }
+  }
+}
 
 const FundamentosAdventure: React.FC = () => {
   const [phase, setPhase] = useState<GamePhase>('intro');
@@ -184,12 +408,14 @@ const FundamentosAdventure: React.FC = () => {
   const [stats, setStats] = useState<GameStats>(INITIAL_STATS);
   const [lastConsequence, setLastConsequence] = useState('');
   const [log, setLog] = useState<string[]>([]);
-  const [playerPos, setPlayerPos] = useState<Point>(START_TILE);
   const [travelMessage, setTravelMessage] = useState('Explora la ciudad y llega al primer punto tactico.');
-  const [stepState, setStepState] = useState(false);
+
+  const sceneRef = useRef<AdventureScene | null>(null);
+  const gameRef = useRef<Phaser.Game | null>(null);
+  const gameHostRef = useRef<HTMLDivElement | null>(null);
+  const missionIndexRef = useRef(0);
 
   const activeMission = MISSIONS[missionIndex];
-  const targetTile = MISSION_TILES[missionIndex];
 
   const score = useMemo(() => {
     return stats.estrategia + stats.etica + stats.reaccion + Math.floor(stats.energia / 2);
@@ -208,15 +434,84 @@ const FundamentosAdventure: React.FC = () => {
     return 'Aprendiz de Territorio';
   }, [score]);
 
+  useEffect(() => {
+    missionIndexRef.current = missionIndex;
+  }, [missionIndex]);
+
+  useEffect(() => {
+    if (!gameHostRef.current || gameRef.current) {
+      return;
+    }
+
+    const hooks: SceneHooks = {
+      onReach: () => {
+        const currentMission = MISSIONS[missionIndexRef.current];
+        setPhase('decision');
+        setTravelMessage(`Encuentro activado en ${currentMission.place}.`);
+      },
+      onBlocked: () => setTravelMessage('Bloqueado. Usa calles o zonas peatonales para rodear.'),
+      onMove: () => {
+        const currentMission = MISSIONS[missionIndexRef.current];
+        setTravelMessage(`Explorando: rumbo a ${currentMission.place}.`);
+      }
+    };
+
+    const scene = new AdventureScene(hooks, MISSION_TILES[0]);
+
+    const game = new Phaser.Game({
+      type: Phaser.AUTO,
+      width: VIEW_WIDTH,
+      height: VIEW_HEIGHT,
+      parent: gameHostRef.current,
+      backgroundColor: '#9fd0ff',
+      pixelArt: true,
+      scene: [scene],
+      render: {
+        antialias: false,
+        roundPixels: true
+      },
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      }
+    });
+
+    sceneRef.current = scene;
+    gameRef.current = game;
+
+    return () => {
+      game.destroy(true);
+      gameRef.current = null;
+      sceneRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sceneRef.current) {
+      return;
+    }
+
+    sceneRef.current.setTarget(MISSION_TILES[missionIndex]);
+  }, [missionIndex]);
+
+  useEffect(() => {
+    if (!sceneRef.current) {
+      return;
+    }
+
+    sceneRef.current.setTravelEnabled(phase === 'travel');
+  }, [phase]);
+
   const resetGame = () => {
     setPhase('intro');
     setMissionIndex(0);
     setStats(INITIAL_STATS);
     setLastConsequence('');
     setLog([]);
-    setPlayerPos(START_TILE);
     setTravelMessage('Explora la ciudad y llega al primer punto tactico.');
-    setStepState(false);
+    sceneRef.current?.setTarget(MISSION_TILES[0]);
+    sceneRef.current?.resetToStart();
+    sceneRef.current?.setTravelEnabled(false);
   };
 
   const startGame = () => {
@@ -225,9 +520,10 @@ const FundamentosAdventure: React.FC = () => {
     setStats(INITIAL_STATS);
     setLastConsequence('');
     setLog([]);
-    setPlayerPos(START_TILE);
     setTravelMessage('Usa flechas o pad para llegar a Plaza de Briefing.');
-    setStepState(false);
+    sceneRef.current?.setTarget(MISSION_TILES[0]);
+    sceneRef.current?.resetToStart();
+    sceneRef.current?.setTravelEnabled(true);
   };
 
   const applyOption = (option: MissionOption) => {
@@ -251,128 +547,15 @@ const FundamentosAdventure: React.FC = () => {
     }
 
     const nextMissionIndex = missionIndex + 1;
-    const nextMission = MISSIONS[nextMissionIndex];
     setMissionIndex(nextMissionIndex);
     setPhase('travel');
-    setTravelMessage(`Nueva ruta desbloqueada: llega a ${nextMission.place}.`);
+    setTravelMessage(`Nueva ruta desbloqueada: llega a ${MISSIONS[nextMissionIndex].place}.`);
+    sceneRef.current?.setTarget(MISSION_TILES[nextMissionIndex]);
+    sceneRef.current?.setTravelEnabled(true);
   };
 
-  const isWalkable = (nextPos: Point) => {
-    if (nextPos.y < 0 || nextPos.y >= MAP_ROWS) {
-      return false;
-    }
-
-    if (nextPos.x < 0 || nextPos.x >= MAP_COLS) {
-      return false;
-    }
-
-    const tile = TILE_MAP[nextPos.y][nextPos.x] as TileType;
-    return WALKABLE_TILES.has(tile);
-  };
-
-  const movePlayer = (dx: number, dy: number) => {
-    if (phase !== 'travel') {
-      return;
-    }
-
-    setPlayerPos((prev) => {
-      const nextPos = { x: prev.x + dx, y: prev.y + dy };
-
-      if (!isWalkable(nextPos)) {
-        setTravelMessage('Bloqueado. Usa calles o zonas verdes para rodear.');
-        return prev;
-      }
-
-      setStepState((old) => !old);
-
-      if (nextPos.x === targetTile.x && nextPos.y === targetTile.y) {
-        setPhase('decision');
-        setTravelMessage(`Encuentro activado en ${activeMission.place}.`);
-      } else {
-        setTravelMessage(`Explorando: rumbo a ${activeMission.place}.`);
-      }
-
-      return nextPos;
-    });
-  };
-
-  useEffect(() => {
-    if (phase !== 'travel') {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case 'ArrowUp':
-          event.preventDefault();
-          movePlayer(0, -1);
-          break;
-        case 'ArrowDown':
-          event.preventDefault();
-          movePlayer(0, 1);
-          break;
-        case 'ArrowLeft':
-          event.preventDefault();
-          movePlayer(-1, 0);
-          break;
-        case 'ArrowRight':
-          event.preventDefault();
-          movePlayer(1, 0);
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, missionIndex]);
-
-  const getTileClassName = (x: number, y: number) => {
-    const tile = TILE_MAP[y][x] as TileType;
-    const isTarget = targetTile.x === x && targetTile.y === y && phase !== 'complete';
-
-    if (isTarget && phase === 'travel') {
-      return 'tile-target';
-    }
-
-    if (tile === 'F') {
-      return 'tile-forest';
-    }
-
-    if (tile === 'R') {
-      return 'tile-road';
-    }
-
-    if (tile === 'P') {
-      return 'tile-plaza';
-    }
-
-    if (tile === 'W') {
-      return 'tile-water';
-    }
-
-    if (tile === 'B') {
-      return 'tile-building';
-    }
-
-    if (tile === '0' || tile === '1' || tile === '2' || tile === '3') {
-      const tileMission = Number(tile);
-      if (tileMission < missionIndex || phase === 'complete') {
-        return 'tile-cleared';
-      }
-      return 'tile-checkpoint';
-    }
-
-    if (tile === 'S') {
-      return 'tile-start';
-    }
-
-    if (tile === '.') {
-      return 'tile-sidewalk';
-    }
-
-    return 'tile-grass';
+  const handleMoveClick = (dx: number, dy: number) => {
+    sceneRef.current?.tryMove(dx, dy);
   };
 
   const StatBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
@@ -398,112 +581,44 @@ const FundamentosAdventure: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-[#fff8e5] border-4 border-slate-900 rounded-2xl p-4 md:p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 adventure-display">Mapa de ciudad</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 adventure-display">Mapa Phaser</p>
               <p className="text-xs font-bold text-slate-600">Etapa {Math.min(missionIndex + 1, MISSIONS.length)} / {MISSIONS.length}</p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {MISSIONS.map((mission, idx) => {
-                const isCurrent = idx === missionIndex && phase !== 'complete';
-                const isCompleted = idx < missionIndex || phase === 'complete';
-
-                return (
-                  <div
-                    key={mission.title}
-                    className={`rounded-xl border-2 p-3 min-h-24 ${
-                      isCurrent
-                        ? 'bg-[#ffd166] border-slate-900'
-                        : isCompleted
-                        ? 'bg-[#80ed99] border-slate-900'
-                        : 'bg-white border-slate-300'
-                    }`}
-                  >
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-600">{mission.place}</p>
-                    <p className="text-sm font-black text-slate-900 mt-1 leading-tight">{mission.title}</p>
-                  </div>
-                );
-              })}
             </div>
 
             <div className="retro-screen rounded-xl border-4 border-slate-900 p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3 mb-2">
                 <p className="text-xs uppercase font-bold tracking-widest text-slate-700 adventure-display">Escenario urbano</p>
-                <p className="text-[11px] font-bold text-slate-700">Calles, parque y centro civico</p>
+                <p className="text-[11px] font-bold text-slate-700">Motor 2D: Phaser.js</p>
               </div>
 
-              <div className="retro-map-wrap">
-                <div
-                  className="retro-map"
-                  style={{
-                    gridTemplateColumns: `repeat(${MAP_COLS}, var(--tile-size))`,
-                    gridTemplateRows: `repeat(${MAP_ROWS}, var(--tile-size))`
-                  }}
-                >
-                  {TILE_MAP.flatMap((row, y) =>
-                    row.split('').map((_, x) => (
-                      <div key={`tile-${x}-${y}`} className={`retro-tile ${getTileClassName(x, y)}`} />
-                    ))
-                  )}
-
-                  {NPCS.map((npc) => (
-                    <div
-                      key={npc.name}
-                      className="npc-chip"
-                      style={{
-                        left: `calc(${npc.x} * var(--tile-size) + var(--tile-size) / 6)`,
-                        top: `calc(${npc.y} * var(--tile-size) + var(--tile-size) / 8)`
-                      }}
-                      title={`${npc.name} - ${npc.role}`}
-                    >
-                      <div className="sprite-human">
-                        <span className="sprite-hair" style={{ backgroundColor: npc.hair }} />
-                        <span className="sprite-head" />
-                        <span className="sprite-body" style={{ backgroundColor: npc.shirt }} />
-                      </div>
-                    </div>
-                  ))}
-
-                  <div
-                    className={`player-chip ${stepState ? 'player-step' : ''}`}
-                    style={{
-                      left: `calc(${playerPos.x} * var(--tile-size) + var(--tile-size) / 6)`,
-                      top: `calc(${playerPos.y} * var(--tile-size) + var(--tile-size) / 8)`
-                    }}
-                    title="Consultor principal"
-                  >
-                    <div className="sprite-human sprite-player">
-                      <span className="sprite-hair" style={{ backgroundColor: '#111827' }} />
-                      <span className="sprite-head" />
-                      <span className="sprite-body" style={{ backgroundColor: '#1d4ed8' }} />
-                    </div>
-                  </div>
-                </div>
+              <div className="phaser-host-frame">
+                <div ref={gameHostRef} className="phaser-host" />
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
                 <button
-                  onClick={() => movePlayer(0, -1)}
+                  onClick={() => handleMoveClick(0, -1)}
                   disabled={phase !== 'travel'}
                   className="col-start-2 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
                 >
                   Arriba
                 </button>
                 <button
-                  onClick={() => movePlayer(-1, 0)}
+                  onClick={() => handleMoveClick(-1, 0)}
                   disabled={phase !== 'travel'}
                   className="col-start-1 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
                 >
                   Izq
                 </button>
                 <button
-                  onClick={() => movePlayer(1, 0)}
+                  onClick={() => handleMoveClick(1, 0)}
                   disabled={phase !== 'travel'}
                   className="col-start-3 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
                 >
                   Der
                 </button>
                 <button
-                  onClick={() => movePlayer(0, 1)}
+                  onClick={() => handleMoveClick(0, 1)}
                   disabled={phase !== 'travel'}
                   className="col-start-2 border-2 border-slate-900 rounded-lg py-1.5 text-xs font-black bg-[#ffe8d6] disabled:opacity-40"
                 >
@@ -563,7 +678,7 @@ const FundamentosAdventure: React.FC = () => {
               </div>
               <h4 className="text-2xl font-black text-slate-900">Bienvenido a la Liga de Consultoria Politica</h4>
               <p className="text-slate-700 leading-relaxed">
-                Recorre un escenario urbano, conversa con actores politicos y activa eventos en cada punto clave. La jugabilidad combina movimiento RPG con decisiones estrategicas reales.
+                Recorre un escenario urbano en Phaser.js y activa eventos en cada punto clave. Ahora la exploracion usa un motor de juego dedicado para mejor movimiento y presentacion.
               </p>
               <button
                 onClick={startGame}
@@ -583,7 +698,7 @@ const FundamentosAdventure: React.FC = () => {
               </div>
               <h4 className="text-2xl font-black text-slate-900">Llega a {activeMission.place}</h4>
               <p className="text-slate-700">
-                En esta fase te desplazas por la ciudad y eliges ruta. Al llegar al punto resaltado, se abre el encuentro principal del modulo.
+                Usa flechas del teclado o pad tactil. Al tocar el objetivo marcado en el mapa, se abre el encuentro estrategico del modulo.
               </p>
             </div>
           )}
@@ -643,7 +758,7 @@ const FundamentosAdventure: React.FC = () => {
               </div>
               <h4 className="text-2xl font-black text-slate-900">Cierre de campana: {rank}</h4>
               <p className="text-slate-700">
-                Tu score final fue <span className="font-black text-slate-900">{score}</span>. Repite la aventura para probar rutas alternativas entre etica, tactica y velocidad de respuesta.
+                Tu score final fue <span className="font-black text-slate-900">{score}</span>. Repite para probar rutas alternativas entre etica, tactica y velocidad de respuesta.
               </p>
               <button
                 onClick={resetGame}

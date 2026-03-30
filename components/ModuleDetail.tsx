@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ModuleId, ScrapedCreatorProfile, SocialPlatform, SocialProfilesInput } from '../types';
 import { apiService } from '../services/api';
-import FundamentosAdventure from './FundamentosAdventure';
 import { 
   ArrowLeft, 
   Bot, 
@@ -44,6 +43,8 @@ const EMPTY_PROFILES: SocialProfilesInput = {
   tiktok: '',
   x: ''
 };
+
+const FundamentosAdventure = lazy(() => import('./FundamentosAdventure'));
 
 const SOCIAL_SUBSECTIONS: SocialSubsection[] = [
   { platform: 'instagram', title: 'Subsección Instagram', profileInput: '', loading: false, error: '', results: [] },
@@ -482,7 +483,17 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
           ))}
         </div>
 
-        {moduleId === 'fundamentos' && <FundamentosAdventure />}
+        {moduleId === 'fundamentos' && (
+          <Suspense
+            fallback={(
+              <div className="mt-20 rounded-3xl border border-gray-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+                Cargando modo aventura...
+              </div>
+            )}
+          >
+            <FundamentosAdventure />
+          </Suspense>
+        )}
 
         {moduleId === 'mapeo' && (
           <section className="mt-20 space-y-8">
