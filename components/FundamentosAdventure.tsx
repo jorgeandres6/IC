@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Shield, Sparkles, Swords, HeartPulse, RotateCcw, ChevronRight } from 'lucide-react';
+import { Shield, Sparkles, Swords, HeartPulse, RotateCcw, ChevronRight, MapPin } from 'lucide-react';
 
 type GamePhase = 'intro' | 'travel' | 'decision' | 'outcome' | 'complete';
+
+type TileType = 'F' | 'G' | 'R' | 'P' | 'W' | 'B' | '.' | 'S' | '0' | '1' | '2' | '3';
 
 interface Point {
   x: number;
@@ -29,10 +31,13 @@ interface Mission {
   options: MissionOption[];
 }
 
-interface MoveDirection {
-  dx: number;
-  dy: number;
-  label: string;
+interface Npc {
+  name: string;
+  role: string;
+  x: number;
+  y: number;
+  shirt: string;
+  hair: string;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -44,39 +49,43 @@ const INITIAL_STATS: GameStats = {
   energia: 100
 };
 
-const TILE_MAP = [
-  'WWWWWWWWW',
-  'W.......W',
-  'W.S...0.W',
-  'W.WWW...W',
-  'W...1...W',
-  'W...WWW.W',
-  'W..2...3W',
-  'W.......W',
-  'WWWWWWWWW'
+const TILE_MAP: string[] = [
+  'FFFFFFFFFFF',
+  'FGRRRPGRBBF',
+  'FGS..R...0F',
+  'FGRRRGGGRRF',
+  'F..1.R.P..F',
+  'FBRR.RRRRBF',
+  'F..G.2.G..F',
+  'FWWG.R.G3.F',
+  'F...RRR...F',
+  'FFFFFFFFFFF'
 ];
 
+const MAP_ROWS = TILE_MAP.length;
+const MAP_COLS = TILE_MAP[0].length;
+
 const MISSION_TILES: Point[] = [
-  { x: 6, y: 2 },
-  { x: 4, y: 4 },
-  { x: 3, y: 6 },
-  { x: 7, y: 6 }
+  { x: 9, y: 2 },
+  { x: 3, y: 4 },
+  { x: 5, y: 6 },
+  { x: 8, y: 7 }
 ];
 
 const START_TILE: Point = { x: 2, y: 2 };
 
-const DIRECTIONS: MoveDirection[] = [
-  { dx: 0, dy: -1, label: 'Arriba' },
-  { dx: -1, dy: 0, label: 'Izquierda' },
-  { dx: 1, dy: 0, label: 'Derecha' },
-  { dx: 0, dy: 1, label: 'Abajo' }
+const NPCS: Npc[] = [
+  { name: 'Lina', role: 'Periodista', x: 4, y: 2, shirt: '#f97316', hair: '#3f3f46' },
+  { name: 'Mario', role: 'Dirigente vecinal', x: 6, y: 4, shirt: '#2563eb', hair: '#7c2d12' },
+  { name: 'Rocio', role: 'Analista junior', x: 2, y: 6, shirt: '#16a34a', hair: '#1e293b' },
+  { name: 'Iker', role: 'Vocero', x: 7, y: 8, shirt: '#9333ea', hair: '#312e81' }
 ];
 
 const MISSIONS: Mission[] = [
   {
-    place: 'Pueblo Brifing',
+    place: 'Plaza de Briefing',
     title: 'Rol del consultor',
-    briefing: 'Tu candidata pierde terreno en sondeos. Debes definir tu rol en la campana antes del primer debate.',
+    briefing: 'Tu candidata pierde terreno en sondeos. Debes definir tu rol estrategico antes del primer debate televisado.',
     question: 'Que prioridad eliges para abrir la mision?',
     options: [
       {
@@ -97,9 +106,9 @@ const MISSIONS: Mission[] = [
     ]
   },
   {
-    place: 'Ciudad Estrategia',
+    place: 'Avenida de Campana',
     title: 'Tipos de consultoria',
-    briefing: 'El comando quiere resultados inmediatos y tambien un plan de gobierno sostenible.',
+    briefing: 'El comando pide resultados inmediatos y tambien un plan de gobierno sostenible para el mediano plazo.',
     question: 'Como equilibras campana y gestion?',
     options: [
       {
@@ -120,13 +129,13 @@ const MISSIONS: Mission[] = [
     ]
   },
   {
-    place: 'Torre Etica',
+    place: 'Torre de Etica Publica',
     title: 'Etica profesional',
-    briefing: 'Un actor aliado propone desinformacion para dañar al adversario en redes.',
+    briefing: 'Un actor aliado propone desinformacion para dañar al adversario en redes durante un pico de audiencia.',
     question: 'Cual es tu respuesta como consultor?',
     options: [
       {
-        label: 'Rechazar y activar una narrativa basada en evidencia',
+        label: 'Rechazar y activar narrativa basada en evidencia',
         consequence: 'La reputacion de la candidata mejora y el equipo confia mas en tu criterio.',
         impact: { etica: 14, estrategia: 6, reaccion: 2, energia: -8 }
       },
@@ -136,16 +145,16 @@ const MISSIONS: Mission[] = [
         impact: { reaccion: 9, etica: -12, energia: -10 }
       },
       {
-        label: 'Evitar decision y dejar que otros operen',
+        label: 'Evitar la decision y delegar el riesgo',
         consequence: 'La crisis crece y pierdes control del marco narrativo.',
         impact: { estrategia: -8, etica: -5, reaccion: -4, energia: -6 }
       }
     ]
   },
   {
-    place: 'Liga de Crisis',
+    place: 'Centro de Crisis',
     title: 'Gestion de crisis',
-    briefing: 'A 48 horas de la eleccion estalla una acusacion falsa. Debes responder en minutos.',
+    briefing: 'A 48 horas de la eleccion estalla una acusacion falsa. Debes responder en minutos con precision.',
     question: 'Que secuencia ejecutas primero?',
     options: [
       {
@@ -167,6 +176,8 @@ const MISSIONS: Mission[] = [
   }
 ];
 
+const WALKABLE_TILES = new Set<TileType>(['G', 'R', 'P', '.', 'S', '0', '1', '2', '3']);
+
 const FundamentosAdventure: React.FC = () => {
   const [phase, setPhase] = useState<GamePhase>('intro');
   const [missionIndex, setMissionIndex] = useState(0);
@@ -174,7 +185,8 @@ const FundamentosAdventure: React.FC = () => {
   const [lastConsequence, setLastConsequence] = useState('');
   const [log, setLog] = useState<string[]>([]);
   const [playerPos, setPlayerPos] = useState<Point>(START_TILE);
-  const [travelMessage, setTravelMessage] = useState('Explora el mapa para encontrar la primera mision.');
+  const [travelMessage, setTravelMessage] = useState('Explora la ciudad y llega al primer punto tactico.');
+  const [stepState, setStepState] = useState(false);
 
   const activeMission = MISSIONS[missionIndex];
   const targetTile = MISSION_TILES[missionIndex];
@@ -203,7 +215,8 @@ const FundamentosAdventure: React.FC = () => {
     setLastConsequence('');
     setLog([]);
     setPlayerPos(START_TILE);
-    setTravelMessage('Explora el mapa para encontrar la primera mision.');
+    setTravelMessage('Explora la ciudad y llega al primer punto tactico.');
+    setStepState(false);
   };
 
   const startGame = () => {
@@ -213,7 +226,8 @@ const FundamentosAdventure: React.FC = () => {
     setLastConsequence('');
     setLog([]);
     setPlayerPos(START_TILE);
-    setTravelMessage('Usa las flechas o el pad para llegar a Pueblo Brifing.');
+    setTravelMessage('Usa flechas o pad para llegar a Plaza de Briefing.');
+    setStepState(false);
   };
 
   const applyOption = (option: MissionOption) => {
@@ -226,10 +240,7 @@ const FundamentosAdventure: React.FC = () => {
 
     setStats(nextStats);
     setLastConsequence(option.consequence);
-    setLog((prev) => [
-      ...prev,
-      `${activeMission.title}: ${option.label}`
-    ]);
+    setLog((prev) => [...prev, `${activeMission.title}: ${option.label}`]);
     setPhase('outcome');
   };
 
@@ -247,14 +258,16 @@ const FundamentosAdventure: React.FC = () => {
   };
 
   const isWalkable = (nextPos: Point) => {
-    if (nextPos.y < 0 || nextPos.y >= TILE_MAP.length) {
+    if (nextPos.y < 0 || nextPos.y >= MAP_ROWS) {
       return false;
     }
-    const row = TILE_MAP[nextPos.y];
-    if (nextPos.x < 0 || nextPos.x >= row.length) {
+
+    if (nextPos.x < 0 || nextPos.x >= MAP_COLS) {
       return false;
     }
-    return row[nextPos.x] !== 'W';
+
+    const tile = TILE_MAP[nextPos.y][nextPos.x] as TileType;
+    return WALKABLE_TILES.has(tile);
   };
 
   const movePlayer = (dx: number, dy: number) => {
@@ -264,14 +277,19 @@ const FundamentosAdventure: React.FC = () => {
 
     setPlayerPos((prev) => {
       const nextPos = { x: prev.x + dx, y: prev.y + dy };
+
       if (!isWalkable(nextPos)) {
-        setTravelMessage('Hay un bloqueo en esa direccion. Busca otra ruta.');
+        setTravelMessage('Bloqueado. Usa calles o zonas verdes para rodear.');
         return prev;
       }
+
+      setStepState((old) => !old);
 
       if (nextPos.x === targetTile.x && nextPos.y === targetTile.y) {
         setPhase('decision');
         setTravelMessage(`Encuentro activado en ${activeMission.place}.`);
+      } else {
+        setTravelMessage(`Explorando: rumbo a ${activeMission.place}.`);
       }
 
       return nextPos;
@@ -284,54 +302,77 @@ const FundamentosAdventure: React.FC = () => {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        movePlayer(0, -1);
-      }
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        movePlayer(0, 1);
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        movePlayer(-1, 0);
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        movePlayer(1, 0);
+      switch (event.key) {
+        case 'ArrowUp':
+          event.preventDefault();
+          movePlayer(0, -1);
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          movePlayer(0, 1);
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          movePlayer(-1, 0);
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          movePlayer(1, 0);
+          break;
+        default:
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, targetTile.x, targetTile.y, activeMission.place]);
+  }, [phase, missionIndex]);
 
   const getTileClassName = (x: number, y: number) => {
-    const tile = TILE_MAP[y][x];
-    const isPlayer = playerPos.x === x && playerPos.y === y;
-    const isTarget = targetTile && targetTile.x === x && targetTile.y === y && phase !== 'complete';
+    const tile = TILE_MAP[y][x] as TileType;
+    const isTarget = targetTile.x === x && targetTile.y === y && phase !== 'complete';
 
-    if (isPlayer) {
-      return 'bg-[#3a86ff]';
+    if (isTarget && phase === 'travel') {
+      return 'tile-target';
+    }
+
+    if (tile === 'F') {
+      return 'tile-forest';
+    }
+
+    if (tile === 'R') {
+      return 'tile-road';
+    }
+
+    if (tile === 'P') {
+      return 'tile-plaza';
     }
 
     if (tile === 'W') {
-      return 'bg-[#3d405b]';
+      return 'tile-water';
     }
 
-    if (isTarget && phase === 'travel') {
-      return 'bg-[#ffbe0b] animate-pulse';
+    if (tile === 'B') {
+      return 'tile-building';
     }
 
     if (tile === '0' || tile === '1' || tile === '2' || tile === '3') {
       const tileMission = Number(tile);
       if (tileMission < missionIndex || phase === 'complete') {
-        return 'bg-[#80ed99]';
+        return 'tile-cleared';
       }
-      return 'bg-[#f7b267]';
+      return 'tile-checkpoint';
     }
 
-    return 'bg-[#9cd08f]';
+    if (tile === 'S') {
+      return 'tile-start';
+    }
+
+    if (tile === '.') {
+      return 'tile-sidewalk';
+    }
+
+    return 'tile-grass';
   };
 
   const StatBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
@@ -347,21 +388,21 @@ const FundamentosAdventure: React.FC = () => {
   );
 
   return (
-    <section className="mt-20 rounded-3xl border-4 border-slate-900 bg-[#f7eecb] shadow-[10px_10px_0_0_#0f172a] overflow-hidden">
+    <section className="mt-20 rounded-3xl border-4 border-slate-900 bg-[#f5efcf] shadow-[12px_12px_0_0_#0f172a] overflow-hidden adventure-shell">
       <div className="bg-[#d65a31] border-b-4 border-slate-900 px-6 py-4 text-[#fff4de]">
-        <p className="text-xs uppercase tracking-[0.25em] font-bold">Modo Aventura</p>
-        <h3 className="text-2xl md:text-3xl font-black leading-tight">Consultoria Politica: Ruta Fundamentos</h3>
+        <p className="text-xs uppercase tracking-[0.25em] font-bold adventure-display">Modo Aventura</p>
+        <h3 className="text-2xl md:text-3xl font-black leading-tight adventure-display">Consultoria Politica: Ruta Fundamentos</h3>
       </div>
 
       <div className="p-6 md:p-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-[#fff8e5] border-4 border-slate-900 rounded-2xl p-4 md:p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700">Mapa de mision</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 adventure-display">Mapa de ciudad</p>
               <p className="text-xs font-bold text-slate-600">Etapa {Math.min(missionIndex + 1, MISSIONS.length)} / {MISSIONS.length}</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               {MISSIONS.map((mission, idx) => {
                 const isCurrent = idx === missionIndex && phase !== 'complete';
                 const isCompleted = idx < missionIndex || phase === 'complete';
@@ -371,7 +412,7 @@ const FundamentosAdventure: React.FC = () => {
                     key={mission.title}
                     className={`rounded-xl border-2 p-3 min-h-24 ${
                       isCurrent
-                        ? 'bg-[#ffd166] border-slate-900 animate-pulse'
+                        ? 'bg-[#ffd166] border-slate-900'
                         : isCompleted
                         ? 'bg-[#80ed99] border-slate-900'
                         : 'bg-white border-slate-300'
@@ -384,26 +425,62 @@ const FundamentosAdventure: React.FC = () => {
               })}
             </div>
 
-            <div className="mt-4 p-4 bg-white border-2 border-slate-900 rounded-xl">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-xs uppercase font-bold tracking-widest text-slate-500">Zona de exploracion</p>
-                <p className="text-[11px] font-bold text-slate-600">Movimiento: teclado y pad</p>
+            <div className="retro-screen rounded-xl border-4 border-slate-900 p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <p className="text-xs uppercase font-bold tracking-widest text-slate-700 adventure-display">Escenario urbano</p>
+                <p className="text-[11px] font-bold text-slate-700">Calles, parque y centro civico</p>
               </div>
 
-              <div className="grid gap-1 w-fit mx-auto">
-                {TILE_MAP.map((row, y) => (
-                  <div key={`row-${y}`} className="flex gap-1">
-                    {row.split('').map((_, x) => (
-                      <div
-                        key={`tile-${x}-${y}`}
-                        className={`w-5 h-5 border border-slate-800/30 rounded-[2px] transition-colors ${getTileClassName(x, y)}`}
-                      />
-                    ))}
+              <div className="retro-map-wrap">
+                <div
+                  className="retro-map"
+                  style={{
+                    gridTemplateColumns: `repeat(${MAP_COLS}, var(--tile-size))`,
+                    gridTemplateRows: `repeat(${MAP_ROWS}, var(--tile-size))`
+                  }}
+                >
+                  {TILE_MAP.flatMap((row, y) =>
+                    row.split('').map((_, x) => (
+                      <div key={`tile-${x}-${y}`} className={`retro-tile ${getTileClassName(x, y)}`} />
+                    ))
+                  )}
+
+                  {NPCS.map((npc) => (
+                    <div
+                      key={npc.name}
+                      className="npc-chip"
+                      style={{
+                        left: `calc(${npc.x} * var(--tile-size) + var(--tile-size) / 6)`,
+                        top: `calc(${npc.y} * var(--tile-size) + var(--tile-size) / 8)`
+                      }}
+                      title={`${npc.name} - ${npc.role}`}
+                    >
+                      <div className="sprite-human">
+                        <span className="sprite-hair" style={{ backgroundColor: npc.hair }} />
+                        <span className="sprite-head" />
+                        <span className="sprite-body" style={{ backgroundColor: npc.shirt }} />
+                      </div>
+                    </div>
+                  ))}
+
+                  <div
+                    className={`player-chip ${stepState ? 'player-step' : ''}`}
+                    style={{
+                      left: `calc(${playerPos.x} * var(--tile-size) + var(--tile-size) / 6)`,
+                      top: `calc(${playerPos.y} * var(--tile-size) + var(--tile-size) / 8)`
+                    }}
+                    title="Consultor principal"
+                  >
+                    <div className="sprite-human sprite-player">
+                      <span className="sprite-hair" style={{ backgroundColor: '#111827' }} />
+                      <span className="sprite-head" />
+                      <span className="sprite-body" style={{ backgroundColor: '#1d4ed8' }} />
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
+              <div className="mt-3 grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
                 <button
                   onClick={() => movePlayer(0, -1)}
                   disabled={phase !== 'travel'}
@@ -434,18 +511,19 @@ const FundamentosAdventure: React.FC = () => {
                 </button>
               </div>
 
-              <p className="text-xs text-slate-700 mt-4 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2">
+              <div className="mt-3 bg-[#f2f4f9] border border-slate-300 rounded-lg p-2.5 text-xs text-slate-700 flex items-center gap-2">
+                <MapPin size={14} className="text-red-600 shrink-0" />
                 {travelMessage}
-              </p>
+              </div>
             </div>
 
             <div className="mt-4 p-4 bg-white border-2 border-slate-900 rounded-xl">
-              <p className="text-xs uppercase font-bold tracking-widest text-slate-500">Bitacora del consultor</p>
+              <p className="text-xs uppercase font-bold tracking-widest text-slate-500 adventure-display">Bitacora del consultor</p>
               {!log.length ? (
                 <p className="text-sm text-slate-700 mt-2">Sin movimientos registrados todavia.</p>
               ) : (
                 <ul className="mt-2 space-y-1.5 text-sm text-slate-800">
-                  {log.slice(-3).map((item, idx) => (
+                  {log.slice(-4).map((item, idx) => (
                     <li key={`${item}-${idx}`} className="flex items-start gap-2">
                       <span className="font-black text-[#d65a31]">&gt;</span>
                       <span>{item}</span>
@@ -457,7 +535,7 @@ const FundamentosAdventure: React.FC = () => {
           </div>
 
           <div className="lg:col-span-5 bg-white border-4 border-slate-900 rounded-2xl p-4 md:p-5 space-y-3">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700">Panel de estado</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 adventure-display">Panel de estado</p>
             <StatBar label="Estrategia" value={stats.estrategia} color="bg-blue-600" />
             <StatBar label="Etica" value={stats.etica} color="bg-emerald-600" />
             <StatBar label="Reaccion" value={stats.reaccion} color="bg-amber-500" />
@@ -485,7 +563,7 @@ const FundamentosAdventure: React.FC = () => {
               </div>
               <h4 className="text-2xl font-black text-slate-900">Bienvenido a la Liga de Consultoria Politica</h4>
               <p className="text-slate-700 leading-relaxed">
-                Recorre cuatro zonas criticas del modulo de fundamentos y toma decisiones como consultor senior. Cada accion modifica tu estrategia, etica, capacidad de reaccion y energia.
+                Recorre un escenario urbano, conversa con actores politicos y activa eventos en cada punto clave. La jugabilidad combina movimiento RPG con decisiones estrategicas reales.
               </p>
               <button
                 onClick={startGame}
@@ -503,9 +581,9 @@ const FundamentosAdventure: React.FC = () => {
                 <Swords size={14} />
                 Exploracion activa
               </div>
-              <h4 className="text-2xl font-black text-slate-900">Avanza hasta {activeMission.place}</h4>
+              <h4 className="text-2xl font-black text-slate-900">Llega a {activeMission.place}</h4>
               <p className="text-slate-700">
-                Recorre el mapa hasta la zona marcada en amarillo para activar el encuentro estrategico. Si quieres un flujo estilo RPG, esta fase simula el desplazamiento entre ciudades.
+                En esta fase te desplazas por la ciudad y eliges ruta. Al llegar al punto resaltado, se abre el encuentro principal del modulo.
               </p>
             </div>
           )}
@@ -565,7 +643,7 @@ const FundamentosAdventure: React.FC = () => {
               </div>
               <h4 className="text-2xl font-black text-slate-900">Cierre de campana: {rank}</h4>
               <p className="text-slate-700">
-                Tu score final fue <span className="font-black text-slate-900">{score}</span>. Repite la aventura para probar otras rutas y comparar decisiones eticas vs tacticas bajo presion.
+                Tu score final fue <span className="font-black text-slate-900">{score}</span>. Repite la aventura para probar rutas alternativas entre etica, tactica y velocidad de respuesta.
               </p>
               <button
                 onClick={resetGame}
