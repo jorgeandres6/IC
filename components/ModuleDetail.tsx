@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ModuleId, ScrapedCreatorProfile, SocialPlatform, SocialProfilesInput } from '../types';
 import { apiService } from '../services/api';
+import FundamentosAdventure from './FundamentosAdventure';
 import { 
   ArrowLeft, 
   Bot, 
@@ -480,6 +481,8 @@ const ModuleDetail: React.FC<ModuleDetailProps> = ({ moduleId, onBack, onEnterCh
             </div>
           ))}
         </div>
+
+        {moduleId === 'fundamentos' && <FundamentosAdventure />}
 
         {moduleId === 'mapeo' && (
           <section className="mt-20 space-y-8">
