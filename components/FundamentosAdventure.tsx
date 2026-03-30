@@ -45,183 +45,184 @@ interface HumanSpriteStyle {
   accent?: string;
 }
 
-const TRAINER_FRAMES: Record<Facing, string[][]> = {
-  down: [
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchsschk..',
-      '..kssssssk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..konnn.ok..',
-      '..kr.r..rk..',
-      '...k....k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchsschk..',
-      '..kssssssk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..konnnnok..',
-      '..krr..rrk..',
-      '...k....k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchsschk..',
-      '..kssssssk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..ko.nnnok..',
-      '..kr..r.rk..',
-      '...k....k...'
-    ]
+const mirrorFrame = (frame: string[]) => frame.map((row) => row.split('').reverse().join(''));
+
+const DOWN_FRAMES: string[][] = [
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kccweewwck...',
+    '...kchssssshk...',
+    '...kcssdddssk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksn..nsk....',
+    '...krrk..krrk...',
+    '...krk....krk...',
+    '....k......k....'
   ],
-  up: [
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchhhchk..',
-      '..khhhhhhk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..konnn.ok..',
-      '..kr.r..rk..',
-      '...k....k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchhhchk..',
-      '..khhhhhhk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..konnnnok..',
-      '..krr..rrk..',
-      '...k....k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwck...',
-      '..kchhhchk..',
-      '..khhhhhhk..',
-      '...kobbok...',
-      '..kobbbbok..',
-      '..kobggbok..',
-      '...konnok...',
-      '..ko.nnnok..',
-      '..kr..r.rk..',
-      '...k....k...'
-    ]
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kccweewwck...',
+    '...kchssssshk...',
+    '...kcssdddssk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksnnnnsk....',
+    '...krr....rrk...',
+    '...krk....krk...',
+    '....k......k....'
   ],
-  left: [
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '..kccwwck...',
-      '..kchhssk...',
-      '..ksssssk...',
-      '..kobbbok...',
-      '..kobbbbk...',
-      '..kobgobk...',
-      '..konnnk...',
-      '..konn.ok...',
-      '..kr.r.k....',
-      '...k...k....'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '..kccwwck...',
-      '..kchhssk...',
-      '..ksssssk...',
-      '..kobbbok...',
-      '..kobbbbk...',
-      '..kobgobk...',
-      '..konnnk...',
-      '..konnnk....',
-      '..krr.rk....',
-      '...k...k....'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '..kccwwck...',
-      '..kchhssk...',
-      '..ksssssk...',
-      '..kobbbok...',
-      '..kobbbbk...',
-      '..kobgobk...',
-      '..konnnk...',
-      '..ko.nnk....',
-      '..kr.rrk....',
-      '...k...k....'
-    ]
-  ],
-  right: [
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwcck..',
-      '...ksshhck..',
-      '...ksssssk..',
-      '...kobbbok..',
-      '...kbbbbok..',
-      '...kbogbok..',
-      '...knnnok..',
-      '...ko.nnok..',
-      '....k.r.rk..',
-      '....k...k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwcck..',
-      '...ksshhck..',
-      '...ksssssk..',
-      '...kobbbok..',
-      '...kbbbbok..',
-      '...kbogbok..',
-      '...knnnok..',
-      '....knnnok..',
-      '....kr.rrk..',
-      '....k...k...'
-    ],
-    [
-      '....kkkk....',
-      '...kcccck...',
-      '...kcwwcck..',
-      '...ksshhck..',
-      '...ksssssk..',
-      '...kobbbok..',
-      '...kbbbbok..',
-      '...kbogbok..',
-      '...knnnok..',
-      '....knn.ok..',
-      '....krr.rk..',
-      '....k...k...'
-    ]
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kccweewwck...',
+    '...kchssssshk...',
+    '...kcssdddssk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksn..nsk....',
+    '...k.rk..kr.k...',
+    '...krr....rrk...',
+    '....k......k....'
   ]
+];
+
+const UP_FRAMES: string[][] = [
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kcchhhhhck...',
+    '...kchhhhhhhk...',
+    '...kchhkkhhhk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksn..nsk....',
+    '...krrk..krrk...',
+    '...krk....krk...',
+    '....k......k....'
+  ],
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kcchhhhhck...',
+    '...kchhhhhhhk...',
+    '...kchhkkhhhk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksnnnnsk....',
+    '...krr....rrk...',
+    '...krk....krk...',
+    '....k......k....'
+  ],
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '....kcwwwwwck...',
+    '...kcchhhhhck...',
+    '...kchhhhhhhk...',
+    '...kchhkkhhhk...',
+    '....ksoooosk....',
+    '...ksoooooskk...',
+    '...ksooggoosk...',
+    '...ksonnnnosk...',
+    '...ksonnnnosk...',
+    '....ksn..nsk....',
+    '...k.rk..kr.k...',
+    '...krr....rrk...',
+    '....k......k....'
+  ]
+];
+
+const LEFT_FRAMES: string[][] = [
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '...kcccwwwwck...',
+    '...kchsssewck...',
+    '...kcsssssshk...',
+    '...kcssdddssk...',
+    '...ksooooosk...',
+    '...ksooooosk...',
+    '...ksooggosk...',
+    '...ksonnnosk...',
+    '...ksonnnsk....',
+    '...ksnnnnsk....',
+    '...krrk.rk.....',
+    '....krk.k......',
+    '.....k..k......'
+  ],
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '...kcccwwwwck...',
+    '...kchsssewck...',
+    '...kcsssssshk...',
+    '...kcssdddssk...',
+    '...ksooooosk...',
+    '...ksooooosk...',
+    '...ksooggosk...',
+    '...ksonnnosk...',
+    '...ksonnnsk....',
+    '...ksnnnnsk....',
+    '...krr..rk.....',
+    '....krkrk......',
+    '.....k..k......'
+  ],
+  [
+    '......kkkk......',
+    '.....kcccck.....',
+    '....kcccccck....',
+    '...kcccwwwwck...',
+    '...kchsssewck...',
+    '...kcsssssshk...',
+    '...kcssdddssk...',
+    '...ksooooosk...',
+    '...ksooooosk...',
+    '...ksooggosk...',
+    '...ksonnnosk...',
+    '...ksonnnsk....',
+    '...ksnnnnsk....',
+    '...k.rkrrk.....',
+    '....krk.k......',
+    '.....k..k......'
+  ]
+];
+
+const TRAINER_FRAMES: Record<Facing, string[][]> = {
+  down: DOWN_FRAMES,
+  up: UP_FRAMES,
+  left: LEFT_FRAMES,
+  right: LEFT_FRAMES.map((frame) => mirrorFrame(frame))
 };
 
 const TILE_MAP: string[] = [
@@ -244,7 +245,7 @@ const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
 const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 const GAME_WIDTH = 420;
 const GAME_HEIGHT = 300;
-const CAMERA_ZOOM = 1.75;
+const CAMERA_ZOOM = 2.05;
 
 const MISSION_TILES: Point[] = [
   { x: 10, y: 2 },
@@ -586,7 +587,7 @@ class AdventureScene extends Phaser.Scene {
   }
 
   private normalizeFrame(frame: string[]): string[] {
-    return frame.map((row) => row.padEnd(12, '.').slice(0, 12));
+    return frame.map((row) => row.padEnd(16, '.').slice(0, 16));
   }
 
   private registerCharacterTextures(prefix: string, style: HumanSpriteStyle): void {
@@ -597,6 +598,8 @@ class AdventureScene extends Phaser.Scene {
       w: '#e2e8f0',
       h: style.hair,
       s: '#fdba74',
+      d: '#fb923c',
+      e: '#0f172a',
       o: style.outfit,
       b: style.outfit,
       g: style.accent ?? '#f8fafc',
