@@ -218,6 +218,202 @@ const LEFT_FRAMES: string[][] = [
   ]
 ];
 
+const PLAYER_DOWN_FRAMES: string[][] = [
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhsssssshhck..',
+    '..kchssddddsshck..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnn....nnsk...',
+    '..krrk....krrk...',
+    '..krk......krk...',
+    '...k........k....'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhsssssshhck..',
+    '..kchssddddsshck..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnnnnnnnnsk...',
+    '..krr......rrk...',
+    '..krk......krk...',
+    '...k........k....'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhsssssshhck..',
+    '..kchssddddsshck..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnn....nnsk...',
+    '..kr.k....k.rrk..',
+    '..krr......rrk...',
+    '...k........k....'
+  ]
+];
+
+const PLAYER_UP_FRAMES: string[][] = [
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccchhhhhccck...',
+    '..kchhhhhhhhhhck..',
+    '..kchhhhkkhhhhck..',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnn....nnsk...',
+    '..krrk....krrk...',
+    '..krk......krk...',
+    '...k........k....'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccchhhhhccck...',
+    '..kchhhhhhhhhhck..',
+    '..kchhhhkkhhhhck..',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnnnnnnnnsk...',
+    '..krr......rrk...',
+    '..krk......krk...',
+    '...k........k....'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccchhhhhccck...',
+    '..kchhhhhhhhhhck..',
+    '..kchhhhkkhhhhck..',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooooooooskk..',
+    '..ksoooggggooosk..',
+    '..ksoonnnnnnoosk..',
+    '...ksonnnnnnosk...',
+    '...ksnn....nnsk...',
+    '..kr.k....k.rrk..',
+    '..krr......rrk...',
+    '...k........k....'
+  ]
+];
+
+const PLAYER_LEFT_FRAMES: string[][] = [
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhssssshhhck..',
+    '..kchssddddddssk..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooggggoosk...',
+    '..ksoonnnnnoosk...',
+    '...ksonnnnnosk....',
+    '...ksnnnnnnsk.....',
+    '...krrk..rk.......',
+    '....krk.kr........',
+    '.....k...k........'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhssssshhhck..',
+    '..kchssddddddssk..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooggggoosk...',
+    '..ksoonnnnnoosk...',
+    '...ksonnnnnosk....',
+    '...ksnnnnnnsk.....',
+    '...krr...rk.......',
+    '....krkrk.........',
+    '.....k...k........'
+  ],
+  [
+    '.......kkkk.......',
+    '.....kkcccckk.....',
+    '....kcccccccck....',
+    '...kccccllcccck...',
+    '...kccwwwwwwcck...',
+    '..kccwwweewwwcck..',
+    '..kchhssssshhhck..',
+    '..kchssddddddssk..',
+    '...kssddddddssk...',
+    '...ksoooooooosk...',
+    '...ksoooooooosk...',
+    '..ksoooggggoosk...',
+    '..ksoonnnnnoosk...',
+    '...ksonnnnnosk....',
+    '...ksnnnnnnsk.....',
+    '...kr.k..rrk......',
+    '....krr.kr........',
+    '.....k...k........'
+  ]
+];
+
+const PLAYER_FRAMES: Record<Facing, string[][]> = {
+  down: PLAYER_DOWN_FRAMES,
+  up: PLAYER_UP_FRAMES,
+  left: PLAYER_LEFT_FRAMES,
+  right: PLAYER_LEFT_FRAMES.map((frame) => mirrorFrame(frame))
+};
+
 const TRAINER_FRAMES: Record<Facing, string[][]> = {
   down: DOWN_FRAMES,
   up: UP_FRAMES,
@@ -390,12 +586,16 @@ class AdventureScene extends Phaser.Scene {
     this.drawMap();
     this.drawNPCs();
 
-    this.registerCharacterTextures('player', {
-      outfit: '#1d4ed8',
-      hair: '#111827',
-      cap: '#dc2626',
-      accent: '#f8fafc'
-    });
+    this.registerCharacterTextures(
+      'player',
+      {
+        outfit: '#1d4ed8',
+        hair: '#111827',
+        cap: '#dc2626',
+        accent: '#f8fafc'
+      },
+      PLAYER_FRAMES
+    );
 
     const startPx = toPixels(START_TILE);
     this.player = this.add.image(startPx.x, startPx.y, this.frameKey('player', 'down', 1));
@@ -574,7 +774,7 @@ class AdventureScene extends Phaser.Scene {
 
     npcs.forEach((npc, index) => {
       const key = `npc-${index}`;
-      this.registerCharacterTextures(key, npc.style);
+      this.registerCharacterTextures(key, npc.style, TRAINER_FRAMES);
       const npcPos = toPixels({ x: npc.x, y: npc.y });
       const sprite = this.add.image(npcPos.x, npcPos.y, this.frameKey(key, 'down', 1));
       sprite.setOrigin(0.5, 0.86);
@@ -587,15 +787,20 @@ class AdventureScene extends Phaser.Scene {
   }
 
   private normalizeFrame(frame: string[]): string[] {
-    return frame.map((row) => row.padEnd(16, '.').slice(0, 16));
+    return frame.map((row) => row.padEnd(18, '.').slice(0, 18));
   }
 
-  private registerCharacterTextures(prefix: string, style: HumanSpriteStyle): void {
+  private registerCharacterTextures(
+    prefix: string,
+    style: HumanSpriteStyle,
+    framesByFacing: Record<Facing, string[][]>
+  ): void {
     const palette = {
       '.': '#00000000',
       k: '#111827',
       c: style.cap ?? '#b91c1c',
       w: '#e2e8f0',
+      l: '#fca5a5',
       h: style.hair,
       s: '#fdba74',
       d: '#fb923c',
@@ -607,8 +812,8 @@ class AdventureScene extends Phaser.Scene {
       r: '#7f1d1d'
     };
 
-    (Object.keys(TRAINER_FRAMES) as Facing[]).forEach((facing) => {
-      TRAINER_FRAMES[facing].forEach((rawFrame, index) => {
+    (Object.keys(framesByFacing) as Facing[]).forEach((facing) => {
+      framesByFacing[facing].forEach((rawFrame, index) => {
         const key = this.frameKey(prefix, facing, index);
         if (this.textures.exists(key)) {
           return;
