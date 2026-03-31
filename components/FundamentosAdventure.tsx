@@ -34,6 +34,9 @@ const WALK_COLS: Record<Facing, number[]> = {
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
   private activeFacing: Facing = 'down';
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+  private readonly moveSpeed = 155;
 
   constructor() {
     super({ key: 'character-scene' });
@@ -58,7 +61,60 @@ class CharacterScene extends Phaser.Scene {
     this.hero.setScale(1.65);
     this.hero.setDepth(5);
 
-    this.playWalk('down');
+    this.cursors = this.input.keyboard?.createCursorKeys();
+    this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+
+    this.setWalking(false);
+  }
+
+  update(_: number, delta: number): void {
+    if (!this.hero || !this.cursors || !this.wasd) {
+      return;
+    }
+
+    const left = this.cursors.left.isDown || this.wasd.A.isDown;
+    const right = this.cursors.right.isDown || this.wasd.D.isDown;
+    const up = this.cursors.up.isDown || this.wasd.W.isDown;
+    const down = this.cursors.down.isDown || this.wasd.S.isDown;
+
+    let moveX = 0;
+    let moveY = 0;
+
+    if (left) {
+      moveX -= 1;
+    }
+    if (right) {
+      moveX += 1;
+    }
+    if (up) {
+      moveY -= 1;
+    }
+    if (down) {
+      moveY += 1;
+    }
+
+    const isMoving = moveX !== 0 || moveY !== 0;
+    if (!isMoving) {
+      this.setWalking(false);
+      return;
+    }
+
+    const magnitude = Math.hypot(moveX, moveY) || 1;
+    const normalizedX = moveX / magnitude;
+    const normalizedY = moveY / magnitude;
+
+    const nextX = this.hero.x + normalizedX * this.moveSpeed * (delta / 1000);
+    const nextY = this.hero.y + normalizedY * this.moveSpeed * (delta / 1000);
+
+    this.hero.x = Phaser.Math.Clamp(nextX, 44, GAME_WIDTH - 44);
+    this.hero.y = Phaser.Math.Clamp(nextY, 102, GAME_HEIGHT - 18);
+
+    const nextFacing: Facing = Math.abs(normalizedX) > Math.abs(normalizedY)
+      ? (normalizedX > 0 ? 'right' : 'left')
+      : (normalizedY > 0 ? 'down' : 'up');
+
+    this.activeFacing = nextFacing;
+    this.setWalking(true);
   }
 
   public setFacing(facing: Facing): void {
@@ -66,7 +122,7 @@ class CharacterScene extends Phaser.Scene {
     if (!this.hero) {
       return;
     }
-    this.playWalk(facing);
+    this.hero.setFrame(this.frameIndex(facing, IDLE_COL[facing]));
   }
 
   public setWalking(shouldWalk: boolean): void {
@@ -95,7 +151,13 @@ class CharacterScene extends Phaser.Scene {
     if (!this.hero) {
       return;
     }
-    this.hero.anims.play(this.animationKey(facing), true);
+
+    const key = this.animationKey(facing);
+    if (this.hero.anims.currentAnim?.key === key && this.hero.anims.isPlaying) {
+      return;
+    }
+
+    this.hero.anims.play(key, true);
   }
 
   private createAnimations(): void {
