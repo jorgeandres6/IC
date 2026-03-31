@@ -1,336 +1,104 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
+import personajeCaminar from '../src/img/Personaje_caminar.png';
 
 type Facing = 'up' | 'down' | 'left' | 'right';
 
-interface CharacterStyle {
-  cap: string;
-  capLight: string;
-  capBadge: string;
-  hair: string;
-  skin: string;
-  skinShade: string;
-  jacket: string;
-  shirt: string;
-  pants: string;
-  shoes: string;
-  outline: string;
-  eye: string;
-}
+const GAME_WIDTH = 420;
+const GAME_HEIGHT = 300;
+const FRAME_WIDTH = 64;
+const FRAME_HEIGHT = 64;
+const FRAMES_PER_ROW = 6;
 
-const mirrorFrame = (frame: string[]) => frame.map((row) => row.split('').reverse().join(''));
-
-const HERO_DOWN: string[][] = [
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchsssssssshck..',
-    '..kcssdeeedssck...',
-    '...kssddddddssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krn....nrk....',
-    '....krk....krk....',
-    '.....k......k.....',
-    '..................'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchsssssssshck..',
-    '..kcssdeeedssck...',
-    '...kssddddddssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krnnnnnnrk....',
-    '.....kr....rk.....',
-    '.....k......k.....',
-    '..................'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchsssssssshck..',
-    '..kcssdeeedssck...',
-    '...kssddddddssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krn....nrk....',
-    '.....krr..rrk.....',
-    '.....k......k.....',
-    '..................'
-  ]
-];
-
-const HERO_UP: string[][] = [
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhhhhhhhhshk..',
-    '..kchhhhkkhhhshk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krn....nrk....',
-    '....krk....krk....',
-    '.....k......k.....',
-    '..................'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhhhhhhhhshk..',
-    '..kchhhhkkhhhshk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krnnnnnnrk....',
-    '.....kr....rk.....',
-    '.....k......k.....',
-    '..................'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhhhhhhhhshk..',
-    '..kchhhhkkhhhshk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnssk...',
-    '...kssnnnnnnssk...',
-    '....krn....nrk....',
-    '.....krr..rrk.....',
-    '.....k......k.....',
-    '..................'
-  ]
-];
-
-const HERO_LEFT: string[][] = [
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhssssssshck..',
-    '..kchssddeeeessk..',
-    '..kcssdddddddssk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnsk....',
-    '...kssnnnnnnsk....',
-    '...krnk..rk.......',
-    '....krk.kr........',
-    '.....k...k........'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhssssssshck..',
-    '..kchssddeeeessk..',
-    '..kcssdddddddssk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnsk....',
-    '...kssnnnnnnsk....',
-    '...krn...rk.......',
-    '....krkrk.........',
-    '.....k...k........'
-  ],
-  [
-    '......kkkkkk......',
-    '.....kcccccck.....',
-    '....kcccwwccck....',
-    '...kcccwllwccck...',
-    '...kccwwwwwwcck...',
-    '..kccchhhhhccck...',
-    '..kchhssssssshck..',
-    '..kchssddeeeessk..',
-    '..kcssdddddddssk..',
-    '...ksssoooosssk...',
-    '...ksssoooosssk...',
-    '..ksssooogoossk...',
-    '..kssssoogoossk...',
-    '...kssnnnnnnsk....',
-    '...kssnnnnnnsk....',
-    '...kr.k..nrk......',
-    '....krr.kr........',
-    '.....k...k........'
-  ]
-];
-
-const HERO_FRAMES: Record<Facing, string[][]> = {
-  down: HERO_DOWN,
-  up: HERO_UP,
-  left: HERO_LEFT,
-  right: HERO_LEFT.map((frame) => mirrorFrame(frame))
-};
-
-const HERO_STYLE: CharacterStyle = {
-  cap: '#dc2626',
-  capLight: '#fca5a5',
-  capBadge: '#f8fafc',
-  hair: '#4b5563',
-  skin: '#fdba74',
-  skinShade: '#fb923c',
-  jacket: '#2563eb',
-  shirt: '#e5e7eb',
-  pants: '#334155',
-  shoes: '#7f1d1d',
-  outline: '#111827',
-  eye: '#0f172a'
+const FACING_ROW: Record<Facing, number> = {
+  down: 0,
+  left: 1,
+  right: 2,
+  up: 3
 };
 
 class CharacterScene extends Phaser.Scene {
-  private hero?: Phaser.GameObjects.Image;
-  private facing: Facing = 'down';
-  private animating = false;
+  private hero?: Phaser.GameObjects.Sprite;
+  private activeFacing: Facing = 'down';
 
   constructor() {
     super({ key: 'character-scene' });
   }
 
-  create(): void {
-    this.cameras.main.setBackgroundColor('#e2e8f0');
-    this.add.rectangle(210, 150, 420, 300, 0xe5eef9, 1);
-    this.add.ellipse(210, 220, 220, 56, 0x94a3b8, 0.22);
-    this.add.ellipse(210, 214, 144, 28, 0x0f172a, 0.12);
-
-    this.registerCharacterTextures('hero', HERO_STYLE, HERO_FRAMES);
-
-    this.hero = this.add.image(210, 182, this.frameKey('hero', 'down', 1));
-    this.hero.setOrigin(0.5, 0.88);
-    this.hero.setScale(1.12);
-    this.hero.setDepth(5);
-
-    this.add.text(210, 258, 'Protagonista base', {
-      fontFamily: 'Nunito, sans-serif',
-      fontSize: '18px',
-      color: '#0f172a',
-      fontStyle: '700'
-    }).setOrigin(0.5, 0.5);
-  }
-
-  public setFacing(facing: Facing): void {
-    this.facing = facing;
-    if (!this.hero) {
-      return;
-    }
-    this.hero.setTexture(this.frameKey('hero', facing, 1));
-  }
-
-  public previewWalk(): void {
-    if (this.animating || !this.hero) {
-      return;
-    }
-
-    this.animating = true;
-    const frames = [0, 1, 2, 1];
-
-    frames.forEach((frame, index) => {
-      this.time.delayedCall(index * 110, () => {
-        if (!this.hero) {
-          return;
-        }
-        this.hero.setTexture(this.frameKey('hero', this.facing, frame));
-        if (index === frames.length - 1) {
-          this.animating = false;
-        }
-      });
+  preload(): void {
+    this.load.spritesheet('hero-sheet', personajeCaminar, {
+      frameWidth: FRAME_WIDTH,
+      frameHeight: FRAME_HEIGHT
     });
   }
 
-  private frameKey(prefix: string, facing: Facing, frame: number): string {
-    return `${prefix}-${facing}-${frame}`;
+  create(): void {
+    this.cameras.main.setBackgroundColor('#e2e8f0');
+    this.add.rectangle(210, 150, 420, 300, 0xe5eef9, 1);
+    this.add.ellipse(210, 222, 210, 50, 0x0f172a, 0.12);
+
+    this.createAnimations();
+
+    this.hero = this.add.sprite(210, 184, 'hero-sheet', this.frameIndex('down', 0));
+    this.hero.setOrigin(0.5, 0.88);
+    this.hero.setScale(1.65);
+    this.hero.setDepth(5);
+
+    this.playWalk('down');
   }
 
-  private normalizeFrame(frame: string[]): string[] {
-    return frame.map((row) => row.padEnd(18, '.').slice(0, 18));
+  public setFacing(facing: Facing): void {
+    this.activeFacing = facing;
+    if (!this.hero) {
+      return;
+    }
+    this.playWalk(facing);
   }
 
-  private registerCharacterTextures(
-    prefix: string,
-    style: CharacterStyle,
-    framesByFacing: Record<Facing, string[][]>
-  ): void {
-    const palette = {
-      '.': '#00000000',
-      k: style.outline,
-      c: style.cap,
-      w: style.capLight,
-      l: style.capBadge,
-      h: style.hair,
-      s: style.skin,
-      d: style.skinShade,
-      e: style.eye,
-      o: style.jacket,
-      g: style.shirt,
-      n: style.pants,
-      r: style.shoes
-    } as unknown as Phaser.Types.Create.Palette;
+  public setWalking(shouldWalk: boolean): void {
+    if (!this.hero) {
+      return;
+    }
 
-    (Object.keys(framesByFacing) as Facing[]).forEach((facing) => {
-      framesByFacing[facing].forEach((rawFrame, index) => {
-        const key = this.frameKey(prefix, facing, index);
-        if (this.textures.exists(key)) {
-          return;
-        }
+    if (shouldWalk) {
+      this.playWalk(this.activeFacing);
+      return;
+    }
 
-        this.textures.generate(key, {
-          data: this.normalizeFrame(rawFrame),
-          pixelWidth: 3,
-          palette
-        });
+    this.hero.anims.stop();
+    this.hero.setFrame(this.frameIndex(this.activeFacing, 0));
+  }
+
+  private animationKey(facing: Facing): string {
+    return `hero-walk-${facing}`;
+  }
+
+  private frameIndex(facing: Facing, col: number): number {
+    return FACING_ROW[facing] * FRAMES_PER_ROW + col;
+  }
+
+  private playWalk(facing: Facing): void {
+    if (!this.hero) {
+      return;
+    }
+    this.hero.anims.play(this.animationKey(facing), true);
+  }
+
+  private createAnimations(): void {
+    (Object.keys(FACING_ROW) as Facing[]).forEach((facing) => {
+      const key = this.animationKey(facing);
+      if (this.anims.exists(key)) {
+        return;
+      }
+
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers('hero-sheet', {
+          start: this.frameIndex(facing, 0),
+          end: this.frameIndex(facing, FRAMES_PER_ROW - 1)
+        }),
+        frameRate: 10,
+        repeat: -1
       });
     });
   }
@@ -338,6 +106,7 @@ class CharacterScene extends Phaser.Scene {
 
 const FundamentosAdventure: React.FC = () => {
   const [facing, setFacing] = useState<Facing>('down');
+  const [walking, setWalking] = useState(true);
   const sceneRef = useRef<CharacterScene | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -350,8 +119,8 @@ const FundamentosAdventure: React.FC = () => {
     const scene = new CharacterScene();
     const game = new Phaser.Game({
       type: Phaser.AUTO,
-      width: 420,
-      height: 300,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
       parent: hostRef.current,
       backgroundColor: '#e2e8f0',
       pixelArt: true,
@@ -380,14 +149,18 @@ const FundamentosAdventure: React.FC = () => {
     sceneRef.current?.setFacing(facing);
   }, [facing]);
 
+  useEffect(() => {
+    sceneRef.current?.setWalking(walking);
+  }, [walking]);
+
   return (
     <section className="character-shell mt-20">
       <div className="character-card">
         <div className="character-copy">
-          <p className="character-kicker">Estudio de Personaje</p>
-          <h3 className="character-title">Protagonista principal</h3>
+          <p className="character-kicker">Sprite Principal</p>
+          <h3 className="character-title">Personaje desde Sprite Sheet</h3>
           <p className="character-text">
-            Se eliminó todo el mapa y la UI de aventura. Esta pantalla queda dedicada únicamente al personaje principal, con sprite original inspirado en RPG clásico de vista cenital.
+            Se removio todo lo relacionado al mapa y UI de aventura. Esta vista usa solo el sprite sheet en src/img/Personaje_caminar.png con frames de caminata.
           </p>
         </div>
 
@@ -400,7 +173,7 @@ const FundamentosAdventure: React.FC = () => {
           <button onClick={() => setFacing('left')} className={facing === 'left' ? 'active' : ''}>Izquierda</button>
           <button onClick={() => setFacing('down')} className={facing === 'down' ? 'active' : ''}>Abajo</button>
           <button onClick={() => setFacing('right')} className={facing === 'right' ? 'active' : ''}>Derecha</button>
-          <button onClick={() => sceneRef.current?.previewWalk()}>Caminar</button>
+          <button onClick={() => setWalking((prev) => !prev)}>{walking ? 'Pausar' : 'Caminar'}</button>
         </div>
       </div>
     </section>
