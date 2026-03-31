@@ -17,6 +17,20 @@ const FACING_ROW: Record<Facing, number> = {
   up: 3
 };
 
+const IDLE_COL: Record<Facing, number> = {
+  down: 0,
+  left: 0,
+  right: 0,
+  up: 0
+};
+
+const WALK_COLS: Record<Facing, number[]> = {
+  down: [1, 2, 3, 2],
+  left: [1, 2, 3, 2],
+  right: [1, 2, 3, 2],
+  up: [1, 2, 3, 2]
+};
+
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
   private activeFacing: Facing = 'down';
@@ -39,7 +53,7 @@ class CharacterScene extends Phaser.Scene {
 
     this.createAnimations();
 
-    this.hero = this.add.sprite(210, 184, 'hero-sheet', this.frameIndex('down', 0));
+    this.hero = this.add.sprite(210, 184, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
     this.hero.setOrigin(0.5, 0.88);
     this.hero.setScale(1.65);
     this.hero.setDepth(5);
@@ -66,7 +80,7 @@ class CharacterScene extends Phaser.Scene {
     }
 
     this.hero.anims.stop();
-    this.hero.setFrame(this.frameIndex(this.activeFacing, 0));
+    this.hero.setFrame(this.frameIndex(this.activeFacing, IDLE_COL[this.activeFacing]));
   }
 
   private animationKey(facing: Facing): string {
@@ -93,11 +107,11 @@ class CharacterScene extends Phaser.Scene {
 
       this.anims.create({
         key,
-        frames: this.anims.generateFrameNumbers('hero-sheet', {
-          start: this.frameIndex(facing, 0),
-          end: this.frameIndex(facing, FRAMES_PER_ROW - 1)
-        }),
-        frameRate: 10,
+        frames: WALK_COLS[facing].map((col) => ({
+          key: 'hero-sheet',
+          frame: this.frameIndex(facing, col)
+        })),
+        frameRate: 9,
         repeat: -1
       });
     });
