@@ -287,10 +287,10 @@ class CharacterScene extends Phaser.Scene {
       WORLD_HEIGHT - WALK_BOUNDS_PADDING.bottom
     );
 
-    if (this.isWalkable(nextX, this.hero.y)) {
+    if (this.isWalkable(nextX, this.hero.y) && !this.wouldCollideWithNpc(nextX, this.hero.y)) {
       this.hero.x = nextX;
     }
-    if (this.isWalkable(this.hero.x, nextY)) {
+    if (this.isWalkable(this.hero.x, nextY) && !this.wouldCollideWithNpc(this.hero.x, nextY)) {
       this.hero.y = nextY;
     }
 
@@ -434,6 +434,25 @@ class CharacterScene extends Phaser.Scene {
     const col = Math.floor(x / TILE_SIZE);
     const row = Math.floor(y / TILE_SIZE);
     return WALKABLE_MAP[row]?.[col] ?? false;
+  }
+
+  private wouldCollideWithNpc(heroNextX: number, heroNextY: number): boolean {
+    if (!this.hero || !this.npc) {
+      return false;
+    }
+
+    const heroBounds = this.getSpriteBounds(this.hero, heroNextX, heroNextY);
+    const npcBounds = this.getSpriteBounds(this.npc, this.npc.x, this.npc.y);
+    return Phaser.Geom.Intersects.RectangleToRectangle(heroBounds, npcBounds);
+  }
+
+  private getSpriteBounds(sprite: Phaser.GameObjects.Sprite, x: number, y: number): Phaser.Geom.Rectangle {
+    return new Phaser.Geom.Rectangle(
+      x - sprite.displayWidth * sprite.originX,
+      y - sprite.displayHeight * sprite.originY,
+      sprite.displayWidth,
+      sprite.displayHeight
+    );
   }
 }
 
