@@ -46,6 +46,12 @@ const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
 const DETAIL_GREEN_HIGHLIGHT = 0x95ca47;
 const MOVE_SPEED = 155 * WORLD_SCALE;
+const DIALOG_PADDING_X = 14;
+const DIALOG_PADDING_Y = 10;
+const DIALOG_MIN_WIDTH = 110;
+const DIALOG_MIN_HEIGHT = 36;
+const DIALOG_MAX_TEXT_WIDTH = 240;
+const DIALOG_TYPEWRITER_DELAY = 20;
 const WALK_BOUNDS_PADDING = {
   left: TILE_SIZE * 0.2578125,
   right: TILE_SIZE * 0.2578125,
@@ -187,6 +193,7 @@ class CharacterScene extends Phaser.Scene {
   private npc?: Phaser.GameObjects.Sprite;
   private dialogBox?: Phaser.GameObjects.Rectangle;
   private dialogText?: Phaser.GameObjects.Text;
+  private dialogTypingEvent?: Phaser.Time.TimerEvent;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -484,15 +491,17 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private createDialogUI(): void {
-    this.dialogBox = this.add.rectangle(0, 0, 120, 34, 0xffffff, 0.96);
+    this.dialogBox = this.add.rectangle(0, 0, DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT, 0xffffff, 0.96);
     this.dialogBox.setStrokeStyle(2, 0x1f2937, 1);
     this.dialogBox.setDepth(30);
     this.dialogBox.setVisible(false);
 
-    this.dialogText = this.add.text(0, 0, 'HOLA', {
+    this.dialogText = this.add.text(0, 0, '', {
       fontFamily: 'Arial',
       fontSize: '16px',
-      color: '#111827'
+      color: '#111827',
+      align: 'center',
+      wordWrap: { width: DIALOG_MAX_TEXT_WIDTH, useAdvancedWrap: true }
     });
     this.dialogText.setOrigin(0.5);
     this.dialogText.setDepth(31);
@@ -505,7 +514,7 @@ class CharacterScene extends Phaser.Scene {
     }
 
     const dialogX = this.npc.x;
-    const dialogY = this.npc.y - this.npc.displayHeight * 0.85;
+    const dialogY = this.npc.y - this.npc.displayHeight * 0.62 - this.dialogBox.height * 0.5 - 8;
     this.dialogBox.setPosition(dialogX, dialogY);
     this.dialogText.setPosition(dialogX, dialogY);
   }
@@ -521,13 +530,82 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private showDialog(message: string): void {
+    this.startDialogTypewriter(message);
+  }
+
+  private showDialogInstant(message: string): void {
     if (!this.dialogBox || !this.dialogText) {
       return;
     }
 
+    this.stopDialogTypewriter();
     this.dialogText.setText(message);
+    this.refreshDialogBoxSize();
     this.dialogBox.setVisible(true);
     this.dialogText.setVisible(true);
+  }
+
+  private startDialogTypewriter(message: string): void {
+    if (!this.dialogBox || !this.dialogText) {
+      return;
+    }
+
+    this.stopDialogTypewriter();
+
+    const finalMessage = message.trim();
+    this.dialogText.setText('');
+    this.refreshDialogBoxSize();
+    this.dialogBox.setVisible(true);
+    this.dialogText.setVisible(true);
+
+    if (!finalMessage) {
+      return;
+    }
+
+    let visibleChars = 0;
+    this.dialogTypingEvent = this.time.addEvent({
+      delay: DIALOG_TYPEWRITER_DELAY,
+      loop: true,
+      callback: () => {
+        if (!this.dialogText) {
+          return;
+        }
+
+        visibleChars += 1;
+        this.dialogText.setText(finalMessage.slice(0, visibleChars));
+        this.refreshDialogBoxSize();
+
+        if (visibleChars >= finalMessage.length) {
+          this.stopDialogTypewriter();
+        }
+      }
+    });
+  }
+
+  private stopDialogTypewriter(): void {
+    if (!this.dialogTypingEvent) {
+      return;
+    }
+
+    this.dialogTypingEvent.remove(false);
+    this.dialogTypingEvent = undefined;
+  }
+
+  private refreshDialogBoxSize(): void {
+    if (!this.dialogBox || !this.dialogText) {
+      return;
+    }
+
+    const bounds = this.dialogText.getBounds();
+    const width = Phaser.Math.Clamp(
+      bounds.width + DIALOG_PADDING_X * 2,
+      DIALOG_MIN_WIDTH,
+      DIALOG_MAX_TEXT_WIDTH + DIALOG_PADDING_X * 2
+    );
+    const height = Math.max(DIALOG_MIN_HEIGHT, bounds.height + DIALOG_PADDING_Y * 2);
+
+    this.dialogBox.setSize(width, height);
+    this.dialogBox.setDisplaySize(width, height);
   }
 
   private async requestNpcDialog(): Promise<void> {
@@ -536,7 +614,7 @@ class CharacterScene extends Phaser.Scene {
     }
 
     this.isFetchingDialog = true;
-    this.showDialog('Consultando...');
+    this.showDialogInstant('Consultando...');
 
     try {
       const response = await apiService.getNpcPoliticalConsultantDialog('heroe');
@@ -553,6 +631,7 @@ class CharacterScene extends Phaser.Scene {
       return;
     }
 
+    this.stopDialogTypewriter();
     this.dialogBox.setVisible(false);
     this.dialogText.setVisible(false);
   }
