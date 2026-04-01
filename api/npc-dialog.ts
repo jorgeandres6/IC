@@ -12,7 +12,8 @@ const safeParseJson = (value: string, fallback: unknown) => {
 };
 
 const DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-const MIN_DIALOG_CHARS = 320;
+const MIN_DIALOG_WORDS = 50;
+const MAX_DIALOG_WORDS = 100;
 
 const extractGeminiText = (parsed: any): string => {
   const candidates = Array.isArray(parsed?.candidates) ? parsed.candidates : [];
@@ -37,9 +38,22 @@ const extractGeminiText = (parsed: any): string => {
 const normalizeDialog = (text: string): string => {
   const compact = text.replace(/\s+/g, ' ').trim();
   if (!compact) {
-    return 'Soy consultor politico: analizo el contexto, los actores y la opinion publica para construir estrategias, mensajes y escenarios de decision. Mi trabajo es ayudarte a anticipar riesgos, definir objetivos realistas y elegir la mejor forma de comunicar cada paso.';
+    return 'Como consultor politico, ayudo al heroe a entender el mapa de poder, las necesidades de la gente y los riesgos de cada decision. Diseno estrategias, mensajes y alianzas para cumplir objetivos sin perder legitimidad. Tambien preparo respuestas ante crisis y conflictos. En la practica, traduzco informacion compleja en acciones concretas para que el heroe decida mejor y comunique con claridad en cada etapa.';
   }
-  return compact.slice(0, 900);
+  return compact;
+};
+
+const countWords = (text: string): number => {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  return tokens.length;
+};
+
+const trimToMaxWords = (text: string, maxWords: number): string => {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length <= maxWords) {
+    return text.trim();
+  }
+  return tokens.slice(0, maxWords).join(' ').trim();
 };
 
 const requestGemini = async (geminiUrl: string, prompt: string) => {
@@ -56,8 +70,7 @@ const requestGemini = async (geminiUrl: string, prompt: string) => {
         }
       ],
       generationConfig: {
-        temperature: 0.45,
-        maxOutputTokens: 420
+        temperature: 0.45
       }
     })
   });
@@ -91,10 +104,10 @@ export default async function handler(req: any, res: any) {
     const prompt = [
       'Actua como consultor politico en un videojuego.',
       `Habla directamente al ${heroName}.`,
-      'Explica brevemente cual es el rol de un consultor politico.',
+      'Explica cual es el rol de un consultor politico y como ayuda al heroe.',
       'Responde en espanol claro con una explicacion util y concreta.',
-      'Entrega entre 4 y 6 oraciones cortas, con ejemplos simples del juego.',
-      'Longitud objetivo: entre 350 y 700 caracteres.',
+      'Incluye funciones clave, utilidad practica y un ejemplo sencillo del juego.',
+      `La respuesta debe tener entre ${MIN_DIALOG_WORDS} y ${MAX_DIALOG_WORDS} palabras.`,
       'No uses markdown, ni listas, ni comillas.'
     ].join('\n');
 
@@ -116,27 +129,34 @@ export default async function handler(req: any, res: any) {
 
       if (geminiResponse.ok) {
         const initialReply = normalizeDialog(extractGeminiText(parsed));
-        if (initialReply.length >= MIN_DIALOG_CHARS) {
+        const initialWords = countWords(initialReply);
+        if (initialWords >= MIN_DIALOG_WORDS && initialWords <= MAX_DIALOG_WORDS) {
           finalReply = initialReply;
-          lastStatus = 200;
-          lastMessage = '';
-          break;
-        }
-
-        const expandPrompt = [
-          'Amplia y mejora este mensaje para que quede completo y didactico para un videojuego.',
-          `Mensaje base: ${initialReply || 'Soy consultor politico en este mundo.'}`,
-          'Devuelve una sola respuesta en espanol, sin markdown ni listas.',
-          'Debe tener entre 380 y 800 caracteres y explicar rol, tareas y utilidad practica para el heroe.',
-          'Usa un tono claro, concreto y pedagogico.'
-        ].join('\n');
-
-        const expanded = await requestGemini(geminiUrl, expandPrompt);
-        if (expanded.geminiResponse.ok) {
-          const expandedReply = normalizeDialog(extractGeminiText(expanded.parsed));
-          finalReply = expandedReply || initialReply;
         } else {
-          finalReply = initialReply;
+          const fixLengthPrompt = [
+            'Reescribe el siguiente mensaje para que cumpla una longitud exacta de calidad.',
+            `Mensaje base: ${initialReply || 'Soy consultor politico en este mundo y apoyo tus decisiones estrategicas.'}`,
+            `Debe tener entre ${MIN_DIALOG_WORDS} y ${MAX_DIALOG_WORDS} palabras.`,
+            'Explica rol, tareas y utilidad practica para el heroe.',
+            'Una sola respuesta en espanol, sin markdown, sin listas y sin comillas.'
+          ].join('\n');
+
+          const fixed = await requestGemini(geminiUrl, fixLengthPrompt);
+          if (fixed.geminiResponse.ok) {
+            const fixedReply = normalizeDialog(extractGeminiText(fixed.parsed));
+            const fixedWords = countWords(fixedReply);
+            if (fixedWords >= MIN_DIALOG_WORDS) {
+              finalReply = trimToMaxWords(fixedReply, MAX_DIALOG_WORDS);
+            }
+          }
+
+          if (!finalReply) {
+            if (initialWords >= MIN_DIALOG_WORDS) {
+              finalReply = trimToMaxWords(initialReply, MAX_DIALOG_WORDS);
+            } else {
+              finalReply = normalizeDialog('Como consultor politico, te ayudo a leer el entorno, identificar aliados y anticipar conflictos antes de actuar. Transformo datos y opiniones en estrategias claras para que tomes decisiones con menor riesgo. Tambien diseno mensajes que conectan con la poblacion y fortalecen tu legitimidad. En momentos de crisis, preparo escenarios, respuestas y prioridades para mantener el rumbo. Mi rol es convertir incertidumbre en un plan concreto, viable y comunicable para que avances con confianza.');
+            }
+          }
         }
 
         lastStatus = 200;
