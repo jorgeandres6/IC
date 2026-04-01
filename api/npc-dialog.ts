@@ -16,9 +16,9 @@ const DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1
 const normalizeDialog = (text: string): string => {
   const compact = text.replace(/\s+/g, ' ').trim();
   if (!compact) {
-    return 'Soy consultor politico: analizo actores, contexto y opinion publica para recomendar estrategias de comunicacion y toma de decisiones.';
+    return 'Soy consultor politico: analizo el contexto, los actores y la opinion publica para construir estrategias, mensajes y escenarios de decision. Mi trabajo es ayudarte a anticipar riesgos, definir objetivos realistas y elegir la mejor forma de comunicar cada paso.';
   }
-  return compact.slice(0, 220);
+  return compact.slice(0, 900);
 };
 
 export default async function handler(req: any, res: any) {
@@ -46,7 +46,9 @@ export default async function handler(req: any, res: any) {
       'Actua como consultor politico en un videojuego.',
       `Habla directamente al ${heroName}.`,
       'Explica brevemente cual es el rol de un consultor politico.',
-      'Responde en espanol claro, en 1 o 2 frases cortas y maximo 220 caracteres.',
+      'Responde en espanol claro con una explicacion util y concreta.',
+      'Entrega entre 4 y 6 oraciones cortas, con ejemplos simples del juego.',
+      'Longitud objetivo: entre 350 y 700 caracteres.',
       'No uses markdown, ni listas, ni comillas.'
     ].join('\n');
 
@@ -76,7 +78,7 @@ export default async function handler(req: any, res: any) {
           ],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 120
+            maxOutputTokens: 320
           }
         })
       });
