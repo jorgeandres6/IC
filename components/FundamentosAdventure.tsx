@@ -227,7 +227,7 @@ class CharacterScene extends Phaser.Scene {
 
     this.npc = this.add.sprite(TILE_SIZE * 6.9, TILE_SIZE * 4.3, 'npc-idle-sheet', 0);
     this.npc.setOrigin(0.5, HERO_ORIGIN_Y);
-    this.npc.setDisplaySize(this.hero.displayWidth, this.hero.displayHeight);
+    this.npc.setDisplaySize(this.hero.displayWidth * 0.85, this.hero.displayHeight * 0.85);
     this.npc.setDepth(5);
     this.npc.play('npc-idle', true);
 
