@@ -1,6 +1,7 @@
 import {
   AuthResponse,
   BotResponse,
+  NpcDialogResponse,
   ProfileAnalysisResponse,
   ScrapedCreatorProfile,
   ScrapeCreatorsResponse,
@@ -516,5 +517,17 @@ export const apiService = {
     });
 
     return handleResponse<ProfileAnalysisResponse>(response);
+  },
+
+  getNpcPoliticalConsultantDialog: async (heroName = 'heroe'): Promise<NpcDialogResponse> => {
+    const response = await fetch('/api/npc-dialog', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ heroName })
+    });
+
+    return handleResponse<NpcDialogResponse>(response);
   }
 };

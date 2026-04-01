@@ -53,6 +53,10 @@ export interface ProfileAnalysisResponse {
   analysis: string;
 }
 
+export interface NpcDialogResponse {
+  message: string;
+}
+
 export enum AuthMode {
   LOGIN = 'LOGIN',
   REGISTER = 'REGISTER'

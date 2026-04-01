@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import personajeCaminar from '../src/img/Personaje_caminar.png';
 import nuevoPersonajeIdle from '../src/img/1_IDLE.png';
+import { apiService } from '../services/api';
 
 type Rotation = 0 | 90 | 180 | 270;
 
@@ -190,6 +191,7 @@ class CharacterScene extends Phaser.Scene {
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private spaceKey?: Phaser.Input.Keyboard.Key;
+  private isFetchingDialog = false;
   private readonly moveSpeed = MOVE_SPEED;
 
   constructor() {
@@ -256,7 +258,7 @@ class CharacterScene extends Phaser.Scene {
     this.updateDialogPosition();
     if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       if (this.isHeroNearNpc()) {
-        this.showDialog('HOLA');
+        void this.requestNpcDialog();
       } else {
         this.hideDialog();
       }
@@ -526,6 +528,24 @@ class CharacterScene extends Phaser.Scene {
     this.dialogText.setText(message);
     this.dialogBox.setVisible(true);
     this.dialogText.setVisible(true);
+  }
+
+  private async requestNpcDialog(): Promise<void> {
+    if (this.isFetchingDialog) {
+      return;
+    }
+
+    this.isFetchingDialog = true;
+    this.showDialog('Consultando...');
+
+    try {
+      const response = await apiService.getNpcPoliticalConsultantDialog('heroe');
+      this.showDialog(response.message);
+    } catch {
+      this.showDialog('Soy consultor politico: te ayudo a definir estrategia, mensajes y escenarios para tomar mejores decisiones publicas.');
+    } finally {
+      this.isFetchingDialog = false;
+    }
   }
 
   private hideDialog(): void {
