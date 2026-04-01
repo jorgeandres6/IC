@@ -21,7 +21,9 @@ type Facing = 'up' | 'down' | 'left' | 'right';
 const GAME_WIDTH = 420;
 const GAME_HEIGHT = 300;
 const SOURCE_TILE_SIZE = 256;
-const TILE_SCALE = 2 / 3;
+const WORLD_SCALE = 0.5;
+const BASE_TILE_SCALE = 2 / 3;
+const TILE_SCALE = BASE_TILE_SCALE * WORLD_SCALE;
 const TILE_SIZE = SOURCE_TILE_SIZE * TILE_SCALE;
 const MAP_COLS = 10;
 const MAP_ROWS = 7;
@@ -30,12 +32,22 @@ const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
-const HERO_SCALE = 1.65;
+const BASE_HERO_SCALE = 1.65;
+const HERO_SCALE = BASE_HERO_SCALE * WORLD_SCALE;
 const HERO_ORIGIN_Y = 0.88;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
 const DETAIL_GREEN_HIGHLIGHT = 0x95ca47;
+const MOVE_SPEED = 155 * WORLD_SCALE;
+const WALK_BOUNDS_PADDING = {
+  left: TILE_SIZE * 0.2578125,
+  right: TILE_SIZE * 0.2578125,
+  top: TILE_SIZE * 0.59765625,
+  bottom: TILE_SIZE * 0.10546875
+};
+
+const scaleWorldValue = (value: number): number => value * WORLD_SCALE;
 
 const TILE_TEXTURES = Object.entries(worldTileSources).reduce<Record<number, string>>((textures, [path, source]) => {
   const match = path.match(/Ground (\d+)\.png$/);
@@ -162,7 +174,7 @@ class CharacterScene extends Phaser.Scene {
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
-  private readonly moveSpeed = 155;
+  private readonly moveSpeed = MOVE_SPEED;
 
   constructor() {
     super({ key: 'character-scene' });
@@ -241,8 +253,16 @@ class CharacterScene extends Phaser.Scene {
     const normalizedX = moveX / magnitude;
     const normalizedY = moveY / magnitude;
 
-    const nextX = Phaser.Math.Clamp(this.hero.x + normalizedX * this.moveSpeed * (delta / 1000), 44, WORLD_WIDTH - 44);
-    const nextY = Phaser.Math.Clamp(this.hero.y + normalizedY * this.moveSpeed * (delta / 1000), 102, WORLD_HEIGHT - 18);
+    const nextX = Phaser.Math.Clamp(
+      this.hero.x + normalizedX * this.moveSpeed * (delta / 1000),
+      WALK_BOUNDS_PADDING.left,
+      WORLD_WIDTH - WALK_BOUNDS_PADDING.right
+    );
+    const nextY = Phaser.Math.Clamp(
+      this.hero.y + normalizedY * this.moveSpeed * (delta / 1000),
+      WALK_BOUNDS_PADDING.top,
+      WORLD_HEIGHT - WALK_BOUNDS_PADDING.bottom
+    );
 
     if (this.isWalkable(nextX, this.hero.y)) {
       this.hero.x = nextX;
@@ -360,17 +380,17 @@ class CharacterScene extends Phaser.Scene {
     const details = this.add.graphics();
     details.setDepth(2);
 
-    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 3.92, 42);
-    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 3.92, 42);
-    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 4.9, 42);
-    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 4.9, 42);
-    this.drawGrassCircle(details, TILE_SIZE * 5.72, TILE_SIZE * 4.02, 44);
-    this.drawGrassCircle(details, TILE_SIZE * 8.5, TILE_SIZE * 4.5, 176);
+    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 3.92, scaleWorldValue(42));
+    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 3.92, scaleWorldValue(42));
+    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 4.9, scaleWorldValue(42));
+    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 4.9, scaleWorldValue(42));
+    this.drawGrassCircle(details, TILE_SIZE * 5.72, TILE_SIZE * 4.02, scaleWorldValue(44));
+    this.drawGrassCircle(details, TILE_SIZE * 8.5, TILE_SIZE * 4.5, scaleWorldValue(176));
   }
 
   private drawGrassCircle(graphics: Phaser.GameObjects.Graphics, x: number, y: number, radius: number): void {
     graphics.fillStyle(DETAIL_GREEN_HIGHLIGHT, 1);
-    graphics.fillCircle(x, y, radius + 8);
+    graphics.fillCircle(x, y, radius + scaleWorldValue(8));
     graphics.fillStyle(DETAIL_GREEN, 1);
     graphics.fillCircle(x, y, radius);
   }
