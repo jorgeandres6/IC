@@ -267,6 +267,10 @@ class CharacterScene extends Phaser.Scene {
     const up = this.cursors.up.isDown || this.wasd.W.isDown;
     const down = this.cursors.down.isDown || this.wasd.S.isDown;
 
+    if (left || right || up || down) {
+      this.hideDialog();
+    }
+
     let moveX = 0;
     let moveY = 0;
 
