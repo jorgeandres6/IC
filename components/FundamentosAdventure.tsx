@@ -36,6 +36,7 @@ const FRAMES_PER_ROW = 6;
 const BASE_HERO_SCALE = 1.65;
 const HERO_SCALE = BASE_HERO_SCALE * WORLD_SCALE;
 const HERO_ORIGIN_Y = 0.88;
+const NPC_IDLE_SCALE = 1.7 * WORLD_SCALE;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
@@ -210,6 +211,8 @@ class CharacterScene extends Phaser.Scene {
 
     const spawnX = TILE_SIZE * 5.75;
     const spawnY = TILE_SIZE * 4.1;
+    const npcX = TILE_SIZE * 8.15;
+    const npcY = TILE_SIZE * 2.95;
 
     this.createAnimations();
 
@@ -218,11 +221,9 @@ class CharacterScene extends Phaser.Scene {
     this.hero.setScale(HERO_SCALE);
     this.hero.setDepth(5);
 
-    const npcX = TILE_SIZE * 2.2;
-    const npcY = TILE_SIZE * 4.95;
     this.npc = this.add.sprite(npcX, npcY, 'npc-idle');
-    this.npc.setOrigin(0.5, HERO_ORIGIN_Y);
-    this.npc.setScale(HERO_SCALE);
+    this.npc.setOrigin(0.5, 0.9);
+    this.npc.setScale(NPC_IDLE_SCALE);
     this.npc.setDepth(4);
 
     this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
