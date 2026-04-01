@@ -710,40 +710,34 @@ class CharacterScene extends Phaser.Scene {
     this.dialogText.setWordWrapWidth(textArea.width, true);
 
     const pages: string[] = [];
-    let index = 0;
+    const words = content.split(/\s+/).filter(Boolean);
+    let wordIndex = 0;
 
-    while (index < content.length) {
-      while (index < content.length && content[index] === ' ') {
-        index += 1;
-      }
+    while (wordIndex < words.length) {
+      let pageText = '';
+      let lastFittingPage = '';
 
-      if (index >= content.length) {
-        break;
-      }
-
-      let low = index + 1;
-      let high = content.length;
-      let best = index + 1;
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const candidate = content.slice(index, mid).trim();
-
+      while (wordIndex < words.length) {
+        const candidate = pageText ? `${pageText} ${words[wordIndex]}` : words[wordIndex];
         this.dialogText.setText(candidate);
         const bounds = this.dialogText.getBounds();
         const fits = bounds.height <= textArea.height;
 
-        if (fits) {
-          best = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
+        if (!fits) {
+          break;
         }
+
+        pageText = candidate;
+        lastFittingPage = candidate;
+        wordIndex += 1;
       }
 
-      const page = content.slice(index, best).trim();
-      pages.push(page);
-      index = best;
+      if (!lastFittingPage) {
+        lastFittingPage = words[wordIndex];
+        wordIndex += 1;
+      }
+
+      pages.push(lastFittingPage);
     }
 
     this.dialogText.setText('');
