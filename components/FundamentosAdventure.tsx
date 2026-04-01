@@ -1,17 +1,135 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import personajeCaminar from '../src/img/Personaje_caminar.png';
-import cesped from '../src/img/cesped.jpg';
+
+type Rotation = 0 | 90 | 180 | 270;
+
+type TilePlacement = {
+  tileId: number;
+  rotation?: Rotation;
+  scaleX?: number;
+  scaleY?: number;
+};
+
+const worldTileSources = import.meta.glob('../src/img/mundo/Top-Down Simple Summer_Ground *.png', {
+  eager: true,
+  import: 'default'
+}) as Record<string, string>;
 
 type Facing = 'up' | 'down' | 'left' | 'right';
 
 const GAME_WIDTH = 420;
 const GAME_HEIGHT = 300;
-const WORLD_WIDTH = 1680;
-const WORLD_HEIGHT = 1200;
+const TILE_SIZE = 256;
+const MAP_COLS = 10;
+const MAP_ROWS = 7;
+const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
+const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
+const WORLD_BACKGROUND = 0x40595d;
+const DETAIL_GREEN = 0x73ad3e;
+const DETAIL_GREEN_HIGHLIGHT = 0x95ca47;
+
+const TILE_TEXTURES = Object.entries(worldTileSources).reduce<Record<number, string>>((textures, [path, source]) => {
+  const match = path.match(/Ground (\d+)\.png$/);
+  if (match) {
+    textures[Number(match[1])] = source;
+  }
+  return textures;
+}, {});
+
+const WORLD_TILE_MAP: (TilePlacement | null)[][] = Array.from({ length: MAP_ROWS }, () =>
+  Array.from({ length: MAP_COLS }, () => null)
+);
+
+const WALKABLE_MAP: boolean[][] = Array.from({ length: MAP_ROWS }, () =>
+  Array.from({ length: MAP_COLS }, () => false)
+);
+
+const putTile = (x: number, y: number, tileId: number, options: Omit<TilePlacement, 'tileId'> = {}): void => {
+  if (x < 0 || x >= MAP_COLS || y < 0 || y >= MAP_ROWS) {
+    return;
+  }
+
+  WORLD_TILE_MAP[y][x] = {
+    tileId,
+    rotation: options.rotation ?? 0,
+    scaleX: options.scaleX ?? 1,
+    scaleY: options.scaleY ?? 1
+  };
+};
+
+const markWalkable = (startX: number, startY: number, width: number, height: number): void => {
+  for (let offsetY = 0; offsetY < height; offsetY += 1) {
+    for (let offsetX = 0; offsetX < width; offsetX += 1) {
+      const x = startX + offsetX;
+      const y = startY + offsetY;
+      if (x < 0 || x >= MAP_COLS || y < 0 || y >= MAP_ROWS) {
+        continue;
+      }
+      WALKABLE_MAP[y][x] = true;
+    }
+  }
+};
+
+const paintRoundedBlock = (startX: number, startY: number, width: number, height: number): void => {
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const isTop = row === 0;
+      const isBottom = row === height - 1;
+      const isLeft = col === 0;
+      const isRight = col === width - 1;
+
+      let tileId = 1;
+      let rotation: Rotation = 0;
+
+      if (isTop && isLeft) {
+        tileId = 10;
+      } else if (isTop && isRight) {
+        tileId = 10;
+        rotation = 90;
+      } else if (isBottom && isRight) {
+        tileId = 10;
+        rotation = 180;
+      } else if (isBottom && isLeft) {
+        tileId = 10;
+        rotation = 270;
+      } else if (isTop) {
+        tileId = 24;
+        rotation = 270;
+      } else if (isRight) {
+        tileId = 24;
+      } else if (isBottom) {
+        tileId = 24;
+        rotation = 90;
+      } else if (isLeft) {
+        tileId = 24;
+        rotation = 180;
+      }
+
+      putTile(startX + col, startY + row, tileId, { rotation });
+    }
+  }
+
+  markWalkable(startX, startY, width, height);
+};
+
+paintRoundedBlock(3, 0, 3, 3);
+paintRoundedBlock(7, 0, 3, 3);
+paintRoundedBlock(0, 3, 3, 3);
+paintRoundedBlock(5, 3, 2, 2);
+paintRoundedBlock(7, 3, 3, 3);
+
+putTile(1, 1, 5);
+markWalkable(1, 1, 1, 1);
+
+putTile(4, 3, 37, { scaleY: 3 });
+markWalkable(4, 3, 1, 3);
+
+putTile(0, 6, 41, { scaleX: 3 });
+markWalkable(0, 6, 3, 1);
 
 const FACING_ROW: Record<Facing, number> = {
   down: 0,
@@ -51,22 +169,28 @@ class CharacterScene extends Phaser.Scene {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT
     });
-    this.load.image('grass-tile', cesped);
+
+    Object.entries(TILE_TEXTURES).forEach(([tileId, source]) => {
+      this.load.image(`world-tile-${tileId}`, source);
+    });
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor('#4b6b2b');
+    this.cameras.main.setBackgroundColor(`#${WORLD_BACKGROUND.toString(16)}`);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    const grass = this.add.tileSprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, 'grass-tile');
-    grass.setOrigin(0.5);
+    this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BACKGROUND).setDepth(0);
+    this.drawWorld();
 
-    this.heroShadow = this.add.ellipse(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 38, 44, 14, 0x0f172a, 0.18);
+    const spawnX = TILE_SIZE * 5.75;
+    const spawnY = TILE_SIZE * 4.1;
+
+    this.heroShadow = this.add.ellipse(spawnX, spawnY + 38, 44, 14, 0x0f172a, 0.18);
     this.heroShadow.setDepth(4);
 
     this.createAnimations();
 
-    this.hero = this.add.sprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
+    this.hero = this.add.sprite(spawnX, spawnY, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
     this.hero.setOrigin(0.5, 0.88);
     this.hero.setScale(1.65);
     this.hero.setDepth(5);
@@ -116,11 +240,15 @@ class CharacterScene extends Phaser.Scene {
     const normalizedX = moveX / magnitude;
     const normalizedY = moveY / magnitude;
 
-    const nextX = this.hero.x + normalizedX * this.moveSpeed * (delta / 1000);
-    const nextY = this.hero.y + normalizedY * this.moveSpeed * (delta / 1000);
+    const nextX = Phaser.Math.Clamp(this.hero.x + normalizedX * this.moveSpeed * (delta / 1000), 44, WORLD_WIDTH - 44);
+    const nextY = Phaser.Math.Clamp(this.hero.y + normalizedY * this.moveSpeed * (delta / 1000), 102, WORLD_HEIGHT - 18);
 
-    this.hero.x = Phaser.Math.Clamp(nextX, 44, WORLD_WIDTH - 44);
-    this.hero.y = Phaser.Math.Clamp(nextY, 102, WORLD_HEIGHT - 18);
+    if (this.isWalkable(nextX, this.hero.y)) {
+      this.hero.x = nextX;
+    }
+    if (this.isWalkable(this.hero.x, nextY)) {
+      this.hero.y = nextY;
+    }
 
     if (this.heroShadow) {
       this.heroShadow.x = this.hero.x;
@@ -196,6 +324,52 @@ class CharacterScene extends Phaser.Scene {
       });
     });
   }
+
+  private drawWorld(): void {
+    WORLD_TILE_MAP.forEach((row, rowIndex) => {
+      row.forEach((tile, colIndex) => {
+        if (!tile) {
+          return;
+        }
+
+        const scaleX = tile.scaleX ?? 1;
+        const scaleY = tile.scaleY ?? 1;
+        const sprite = this.add.image(
+          colIndex * TILE_SIZE + (TILE_SIZE * scaleX) / 2,
+          rowIndex * TILE_SIZE + (TILE_SIZE * scaleY) / 2,
+          `world-tile-${tile.tileId}`
+        );
+
+        sprite.setOrigin(0.5);
+        sprite.setScale(scaleX, scaleY);
+        sprite.setAngle(tile.rotation ?? 0);
+        sprite.setDepth(1);
+      });
+    });
+
+    const details = this.add.graphics();
+    details.setDepth(2);
+
+    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 3.92, 42);
+    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 3.92, 42);
+    this.drawGrassCircle(details, TILE_SIZE * 0.52, TILE_SIZE * 4.9, 42);
+    this.drawGrassCircle(details, TILE_SIZE * 1.5, TILE_SIZE * 4.9, 42);
+    this.drawGrassCircle(details, TILE_SIZE * 5.72, TILE_SIZE * 4.02, 44);
+    this.drawGrassCircle(details, TILE_SIZE * 8.5, TILE_SIZE * 4.5, 176);
+  }
+
+  private drawGrassCircle(graphics: Phaser.GameObjects.Graphics, x: number, y: number, radius: number): void {
+    graphics.fillStyle(DETAIL_GREEN_HIGHLIGHT, 1);
+    graphics.fillCircle(x, y, radius + 8);
+    graphics.fillStyle(DETAIL_GREEN, 1);
+    graphics.fillCircle(x, y, radius);
+  }
+
+  private isWalkable(x: number, y: number): boolean {
+    const col = Math.floor(x / TILE_SIZE);
+    const row = Math.floor(y / TILE_SIZE);
+    return WALKABLE_MAP[row]?.[col] ?? false;
+  }
 }
 
 const FundamentosAdventure: React.FC = () => {
@@ -251,10 +425,10 @@ const FundamentosAdventure: React.FC = () => {
     <section className="character-shell mt-20">
       <div className="character-card">
         <div className="character-copy">
-          <p className="character-kicker">Sprite Principal</p>
-          <h3 className="character-title">Personaje desde Sprite Sheet</h3>
+          <p className="character-kicker">Mundo Por Tiles</p>
+          <h3 className="character-title">Escenario armado desde el tileset</h3>
           <p className="character-text">
-            Esta vista usa el sprite sheet en src/img/Personaje_caminar.png sobre un terreno de cesped repetido desde src/img/cesped.jpg para extender el mundo mas alla de la pantalla.
+            Esta vista construye el fondo con las piezas en src/img/mundo para aproximar la composicion de la referencia, combinando bloques redondeados, pasillos y detalles de cesped dentro de un mapa explorables con flechas o WASD.
           </p>
         </div>
 
