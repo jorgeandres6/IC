@@ -37,7 +37,6 @@ const NEW_CHARACTER_FRAME_SIZE = 128;
 const NEW_CHARACTER_FRAMES = 5;
 const BASE_HERO_SCALE = 1.65;
 const HERO_SCALE = BASE_HERO_SCALE * WORLD_SCALE;
-const NEW_CHARACTER_SCALE = HERO_SCALE * (FRAME_WIDTH / NEW_CHARACTER_FRAME_SIZE);
 const HERO_ORIGIN_Y = 0.88;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
@@ -228,7 +227,7 @@ class CharacterScene extends Phaser.Scene {
 
     this.npc = this.add.sprite(TILE_SIZE * 6.9, TILE_SIZE * 4.3, 'npc-idle-sheet', 0);
     this.npc.setOrigin(0.5, HERO_ORIGIN_Y);
-    this.npc.setScale(NEW_CHARACTER_SCALE);
+    this.npc.setDisplaySize(this.hero.displayWidth, this.hero.displayHeight);
     this.npc.setDepth(5);
     this.npc.play('npc-idle', true);
 
