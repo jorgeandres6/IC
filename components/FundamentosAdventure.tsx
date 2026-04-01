@@ -38,6 +38,8 @@ const NEW_CHARACTER_FRAMES = 5;
 const BASE_HERO_SCALE = 1.65;
 const HERO_SCALE = BASE_HERO_SCALE * WORLD_SCALE;
 const HERO_ORIGIN_Y = 0.88;
+const CHARACTER_HITBOX_WIDTH_FACTOR = 0.5;
+const CHARACTER_HITBOX_HEIGHT_FACTOR = 0.62;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
@@ -441,17 +443,22 @@ class CharacterScene extends Phaser.Scene {
       return false;
     }
 
-    const heroBounds = this.getSpriteBounds(this.hero, heroNextX, heroNextY);
-    const npcBounds = this.getSpriteBounds(this.npc, this.npc.x, this.npc.y);
+    const heroBounds = this.getCharacterHitboxBounds(this.hero, heroNextX, heroNextY);
+    const npcBounds = this.getCharacterHitboxBounds(this.npc, this.npc.x, this.npc.y);
     return Phaser.Geom.Intersects.RectangleToRectangle(heroBounds, npcBounds);
   }
 
-  private getSpriteBounds(sprite: Phaser.GameObjects.Sprite, x: number, y: number): Phaser.Geom.Rectangle {
+  private getCharacterHitboxBounds(sprite: Phaser.GameObjects.Sprite, x: number, y: number): Phaser.Geom.Rectangle {
+    const hitboxWidth = sprite.displayWidth * CHARACTER_HITBOX_WIDTH_FACTOR;
+    const hitboxHeight = sprite.displayHeight * CHARACTER_HITBOX_HEIGHT_FACTOR;
+    const left = x - hitboxWidth * 0.5;
+    const top = y - hitboxHeight * sprite.originY;
+
     return new Phaser.Geom.Rectangle(
-      x - sprite.displayWidth * sprite.originX,
-      y - sprite.displayHeight * sprite.originY,
-      sprite.displayWidth,
-      sprite.displayHeight
+      left,
+      top,
+      hitboxWidth,
+      hitboxHeight
     );
   }
 }
