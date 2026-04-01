@@ -184,9 +184,12 @@ const WALK_COLS: Record<Facing, number[]> = {
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
   private npc?: Phaser.GameObjects.Sprite;
+  private dialogBox?: Phaser.GameObjects.Rectangle;
+  private dialogText?: Phaser.GameObjects.Text;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+  private spaceKey?: Phaser.Input.Keyboard.Key;
   private readonly moveSpeed = MOVE_SPEED;
 
   constructor() {
@@ -233,11 +236,14 @@ class CharacterScene extends Phaser.Scene {
     this.npc.setDepth(5);
     this.npc.play('npc-idle', true);
 
+    this.createDialogUI();
+
     this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
     this.cameras.main.roundPixels = true;
 
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+    this.spaceKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
     this.setWalking(false);
   }
@@ -245,6 +251,15 @@ class CharacterScene extends Phaser.Scene {
   update(_: number, delta: number): void {
     if (!this.hero || !this.cursors || !this.wasd) {
       return;
+    }
+
+    this.updateDialogPosition();
+    if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      if (this.isHeroNearNpc()) {
+        this.showDialog('HOLA');
+      } else {
+        this.hideDialog();
+      }
     }
 
     const left = this.cursors.left.isDown || this.wasd.A.isDown;
@@ -460,6 +475,62 @@ class CharacterScene extends Phaser.Scene {
       hitboxWidth,
       hitboxHeight
     );
+  }
+
+  private createDialogUI(): void {
+    this.dialogBox = this.add.rectangle(0, 0, 120, 34, 0xffffff, 0.96);
+    this.dialogBox.setStrokeStyle(2, 0x1f2937, 1);
+    this.dialogBox.setDepth(30);
+    this.dialogBox.setVisible(false);
+
+    this.dialogText = this.add.text(0, 0, 'HOLA', {
+      fontFamily: 'Arial',
+      fontSize: '16px',
+      color: '#111827'
+    });
+    this.dialogText.setOrigin(0.5);
+    this.dialogText.setDepth(31);
+    this.dialogText.setVisible(false);
+  }
+
+  private updateDialogPosition(): void {
+    if (!this.npc || !this.dialogBox || !this.dialogText) {
+      return;
+    }
+
+    const dialogX = this.npc.x;
+    const dialogY = this.npc.y - this.npc.displayHeight * 0.85;
+    this.dialogBox.setPosition(dialogX, dialogY);
+    this.dialogText.setPosition(dialogX, dialogY);
+  }
+
+  private isHeroNearNpc(): boolean {
+    if (!this.hero || !this.npc) {
+      return false;
+    }
+
+    const distance = Phaser.Math.Distance.Between(this.hero.x, this.hero.y, this.npc.x, this.npc.y);
+    const proximityThreshold = (this.hero.displayWidth + this.npc.displayWidth) * 0.55;
+    return distance <= proximityThreshold;
+  }
+
+  private showDialog(message: string): void {
+    if (!this.dialogBox || !this.dialogText) {
+      return;
+    }
+
+    this.dialogText.setText(message);
+    this.dialogBox.setVisible(true);
+    this.dialogText.setVisible(true);
+  }
+
+  private hideDialog(): void {
+    if (!this.dialogBox || !this.dialogText) {
+      return;
+    }
+
+    this.dialogBox.setVisible(false);
+    this.dialogText.setVisible(false);
   }
 }
 
