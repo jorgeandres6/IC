@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import personajeCaminar from '../src/img/Personaje_caminar.png';
-import npcIdle from '../src/img/1_IDLE.png';
+import nuevoPersonajeIdle from '../src/img/1_IDLE.png';
 
 type Rotation = 0 | 90 | 180 | 270;
 
@@ -33,10 +33,12 @@ const WORLD_HEIGHT = MAP_ROWS * TILE_SIZE;
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
+const NEW_CHARACTER_FRAME_SIZE = 128;
+const NEW_CHARACTER_FRAMES = 5;
 const BASE_HERO_SCALE = 1.65;
 const HERO_SCALE = BASE_HERO_SCALE * WORLD_SCALE;
+const NEW_CHARACTER_SCALE = HERO_SCALE * (FRAME_WIDTH / NEW_CHARACTER_FRAME_SIZE);
 const HERO_ORIGIN_Y = 0.88;
-const NPC_IDLE_SCALE = 1.7 * WORLD_SCALE;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
@@ -195,7 +197,11 @@ class CharacterScene extends Phaser.Scene {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT
     });
-    this.load.image('npc-idle', npcIdle);
+
+    this.load.spritesheet('npc-idle-sheet', nuevoPersonajeIdle, {
+      frameWidth: NEW_CHARACTER_FRAME_SIZE,
+      frameHeight: NEW_CHARACTER_FRAME_SIZE
+    });
 
     Object.entries(TILE_TEXTURES).forEach(([tileId, source]) => {
       this.load.image(`world-tile-${tileId}`, source);
@@ -211,20 +217,20 @@ class CharacterScene extends Phaser.Scene {
 
     const spawnX = TILE_SIZE * 5.75;
     const spawnY = TILE_SIZE * 4.1;
-    const npcX = TILE_SIZE * 8.15;
-    const npcY = TILE_SIZE * 2.95;
 
     this.createAnimations();
+    this.createNpcAnimations();
 
     this.hero = this.add.sprite(spawnX, spawnY, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
     this.hero.setOrigin(0.5, HERO_ORIGIN_Y);
     this.hero.setScale(HERO_SCALE);
     this.hero.setDepth(5);
 
-    this.npc = this.add.sprite(npcX, npcY, 'npc-idle');
-    this.npc.setOrigin(0.5, 0.9);
-    this.npc.setScale(NPC_IDLE_SCALE);
-    this.npc.setDepth(4);
+    this.npc = this.add.sprite(TILE_SIZE * 6.9, TILE_SIZE * 4.3, 'npc-idle-sheet', 0);
+    this.npc.setOrigin(0.5, HERO_ORIGIN_Y);
+    this.npc.setScale(NEW_CHARACTER_SCALE);
+    this.npc.setDepth(5);
+    this.npc.play('npc-idle', true);
 
     this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
     this.cameras.main.roundPixels = true;
@@ -356,6 +362,22 @@ class CharacterScene extends Phaser.Scene {
         frameRate: 9,
         repeat: -1
       });
+    });
+  }
+
+  private createNpcAnimations(): void {
+    if (this.anims.exists('npc-idle')) {
+      return;
+    }
+
+    this.anims.create({
+      key: 'npc-idle',
+      frames: this.anims.generateFrameNumbers('npc-idle-sheet', {
+        start: 0,
+        end: NEW_CHARACTER_FRAMES - 1
+      }),
+      frameRate: 6,
+      repeat: -1
     });
   }
 
