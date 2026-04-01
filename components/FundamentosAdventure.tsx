@@ -57,8 +57,15 @@ const TILE_TEXTURES = Object.entries(worldTileSources).reduce<Record<number, str
   return textures;
 }, {});
 
-const WORLD_TILE_MAP: (TilePlacement | null)[][] = Array.from({ length: MAP_ROWS }, () =>
-  Array.from({ length: MAP_COLS }, () => null)
+const createBaseTile = (): TilePlacement => ({
+  tileId: 1,
+  rotation: 0,
+  scaleX: 1,
+  scaleY: 1
+});
+
+const WORLD_TILE_MAP: TilePlacement[][] = Array.from({ length: MAP_ROWS }, () =>
+  Array.from({ length: MAP_COLS }, () => createBaseTile())
 );
 
 const WALKABLE_MAP: boolean[][] = Array.from({ length: MAP_ROWS }, () =>
@@ -358,10 +365,6 @@ class CharacterScene extends Phaser.Scene {
 
     WORLD_TILE_MAP.forEach((row, rowIndex) => {
       row.forEach((tile, colIndex) => {
-        if (!tile) {
-          return;
-        }
-
         const scaleX = tile.scaleX ?? 1;
         const scaleY = tile.scaleY ?? 1;
         const sprite = this.add.image(
