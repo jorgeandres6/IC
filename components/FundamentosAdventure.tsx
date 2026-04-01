@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import personajeCaminar from '../src/img/Personaje_caminar.png';
+import npcIdle from '../src/img/1_IDLE.png';
 
 type Rotation = 0 | 90 | 180 | 270;
 
@@ -178,6 +179,7 @@ const WALK_COLS: Record<Facing, number[]> = {
 
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
+  private npc?: Phaser.GameObjects.Sprite;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -192,6 +194,7 @@ class CharacterScene extends Phaser.Scene {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT
     });
+    this.load.image('npc-idle', npcIdle);
 
     Object.entries(TILE_TEXTURES).forEach(([tileId, source]) => {
       this.load.image(`world-tile-${tileId}`, source);
@@ -214,6 +217,13 @@ class CharacterScene extends Phaser.Scene {
     this.hero.setOrigin(0.5, HERO_ORIGIN_Y);
     this.hero.setScale(HERO_SCALE);
     this.hero.setDepth(5);
+
+    const npcX = TILE_SIZE * 2.2;
+    const npcY = TILE_SIZE * 4.95;
+    this.npc = this.add.sprite(npcX, npcY, 'npc-idle');
+    this.npc.setOrigin(0.5, HERO_ORIGIN_Y);
+    this.npc.setScale(HERO_SCALE);
+    this.npc.setDepth(4);
 
     this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
     this.cameras.main.roundPixels = true;
