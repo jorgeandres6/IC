@@ -46,13 +46,13 @@ const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
 const DETAIL_GREEN_HIGHLIGHT = 0x95ca47;
 const MOVE_SPEED = 155 * WORLD_SCALE;
-const DIALOG_PADDING_X = 14;
+const DIALOG_MARGIN_X = 10;
+const DIALOG_MARGIN_BOTTOM = 10;
+const DIALOG_BOX_HEIGHT = 92;
+const DIALOG_PADDING_X = 12;
 const DIALOG_PADDING_Y = 10;
-const DIALOG_MIN_WIDTH = 110;
-const DIALOG_MIN_HEIGHT = 36;
-const DIALOG_MIN_TEXT_WIDTH = 28;
-const DIALOG_MAX_TEXT_WIDTH = 240;
-const DIALOG_TYPEWRITER_DELAY = 20;
+const DIALOG_TYPEWRITER_DELAY = 18;
+const DIALOG_HINT_TEXT = 'ESPACIO para continuar';
 const WALK_BOUNDS_PADDING = {
   left: TILE_SIZE * 0.2578125,
   right: TILE_SIZE * 0.2578125,
@@ -194,7 +194,12 @@ class CharacterScene extends Phaser.Scene {
   private npc?: Phaser.GameObjects.Sprite;
   private dialogBox?: Phaser.GameObjects.Rectangle;
   private dialogText?: Phaser.GameObjects.Text;
+  private dialogHintText?: Phaser.GameObjects.Text;
   private dialogTypingEvent?: Phaser.Time.TimerEvent;
+  private dialogPages: string[] = [];
+  private dialogPageIndex = 0;
+  private isDialogAwaitingAdvance = false;
+  private isDialogVisible = false;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -265,7 +270,9 @@ class CharacterScene extends Phaser.Scene {
 
     this.updateDialogPosition();
     if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      if (this.isHeroNearNpc()) {
+      if (this.isDialogVisible) {
+        this.advanceDialog();
+      } else if (this.isHeroNearNpc()) {
         void this.requestNpcDialog();
       } else {
         this.hideDialog();
@@ -492,7 +499,7 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private createDialogUI(): void {
-    this.dialogBox = this.add.rectangle(0, 0, DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT, 0xffffff, 0.96);
+    this.dialogBox = this.add.rectangle(0, 0, GAME_WIDTH - DIALOG_MARGIN_X * 2, DIALOG_BOX_HEIGHT, 0xffffff, 0.96);
     this.dialogBox.setStrokeStyle(2, 0x1f2937, 1);
     this.dialogBox.setDepth(30);
     this.dialogBox.setVisible(false);
@@ -501,23 +508,48 @@ class CharacterScene extends Phaser.Scene {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#111827',
-      align: 'center'
+      align: 'left'
     });
-    this.dialogText.setWordWrapWidth(DIALOG_MIN_TEXT_WIDTH, true);
-    this.dialogText.setOrigin(0.5);
+    this.dialogText.setOrigin(0, 0);
     this.dialogText.setDepth(31);
     this.dialogText.setVisible(false);
+
+    this.dialogHintText = this.add.text(0, 0, DIALOG_HINT_TEXT, {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#374151',
+      align: 'right'
+    });
+    this.dialogHintText.setOrigin(1, 1);
+    this.dialogHintText.setDepth(31);
+    this.dialogHintText.setVisible(false);
   }
 
   private updateDialogPosition(): void {
-    if (!this.npc || !this.dialogBox || !this.dialogText) {
+    if (!this.dialogBox || !this.dialogText || !this.dialogHintText) {
       return;
     }
 
-    const dialogX = this.npc.x;
-    const dialogY = this.npc.y - this.npc.displayHeight * 0.62 - this.dialogBox.height * 0.5 - 8;
+    const camera = this.cameras.main;
+    const view = camera.worldView;
+    const dialogWidth = camera.width - DIALOG_MARGIN_X * 2;
+    const dialogX = view.x + camera.width / 2;
+    const dialogY = view.y + camera.height - DIALOG_MARGIN_BOTTOM - DIALOG_BOX_HEIGHT / 2;
+
+    this.dialogBox.setSize(dialogWidth, DIALOG_BOX_HEIGHT);
+    this.dialogBox.setDisplaySize(dialogWidth, DIALOG_BOX_HEIGHT);
     this.dialogBox.setPosition(dialogX, dialogY);
-    this.dialogText.setPosition(dialogX, dialogY);
+
+    const left = dialogX - dialogWidth / 2 + DIALOG_PADDING_X;
+    const top = dialogY - DIALOG_BOX_HEIGHT / 2 + DIALOG_PADDING_Y;
+    const textArea = this.getDialogTextArea();
+
+    this.dialogText.setPosition(left, top);
+    this.dialogText.setWordWrapWidth(textArea.width, true);
+    this.dialogHintText.setPosition(
+      dialogX + dialogWidth / 2 - DIALOG_PADDING_X,
+      dialogY + DIALOG_BOX_HEIGHT / 2 - DIALOG_PADDING_Y
+    );
   }
 
   private isHeroNearNpc(): boolean {
@@ -531,39 +563,63 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private showDialog(message: string): void {
-    this.startDialogTypewriter(message);
+    this.startDialogPagination(message);
   }
 
   private showDialogInstant(message: string): void {
-    if (!this.dialogBox || !this.dialogText) {
+    if (!this.dialogBox || !this.dialogText || !this.dialogHintText) {
       return;
     }
 
     this.stopDialogTypewriter();
+    this.isDialogVisible = true;
+    this.isDialogAwaitingAdvance = false;
+    this.dialogPages = [message];
+    this.dialogPageIndex = 0;
     this.dialogText.setText(message);
-    this.refreshDialogBoxSize();
     this.dialogBox.setVisible(true);
     this.dialogText.setVisible(true);
+    this.dialogHintText.setVisible(false);
+    this.updateDialogPosition();
   }
 
-  private startDialogTypewriter(message: string): void {
-    if (!this.dialogBox || !this.dialogText) {
+  private startDialogPagination(message: string): void {
+    if (!this.dialogBox || !this.dialogText || !this.dialogHintText) {
       return;
     }
 
     this.stopDialogTypewriter();
+    this.updateDialogPosition();
 
     const finalMessage = message.trim();
-    this.dialogText.setText('');
-    this.refreshDialogBoxSize();
+    this.dialogPages = this.paginateDialogMessage(finalMessage);
+    this.dialogPageIndex = 0;
+    this.isDialogVisible = true;
+    this.isDialogAwaitingAdvance = false;
+
     this.dialogBox.setVisible(true);
     this.dialogText.setVisible(true);
+    this.dialogHintText.setVisible(false);
 
-    if (!finalMessage) {
+    if (this.dialogPages.length === 0) {
+      this.dialogText.setText('');
       return;
     }
 
+    this.typeCurrentDialogPage();
+  }
+
+  private typeCurrentDialogPage(): void {
+    if (!this.dialogText || !this.dialogHintText) {
+      return;
+    }
+
+    const currentPage = this.dialogPages[this.dialogPageIndex] ?? '';
     let visibleChars = 0;
+    this.dialogText.setText('');
+    this.isDialogAwaitingAdvance = false;
+    this.dialogHintText.setVisible(false);
+
     this.dialogTypingEvent = this.time.addEvent({
       delay: DIALOG_TYPEWRITER_DELAY,
       loop: true,
@@ -573,14 +629,50 @@ class CharacterScene extends Phaser.Scene {
         }
 
         visibleChars += 1;
-        this.dialogText.setText(finalMessage.slice(0, visibleChars));
-        this.refreshDialogBoxSize();
+        this.dialogText.setText(currentPage.slice(0, visibleChars));
 
-        if (visibleChars >= finalMessage.length) {
+        if (visibleChars >= currentPage.length) {
           this.stopDialogTypewriter();
+
+          if (this.dialogPageIndex < this.dialogPages.length - 1) {
+            this.isDialogAwaitingAdvance = true;
+            this.dialogHintText?.setVisible(true);
+          }
         }
       }
     });
+  }
+
+  private advanceDialog(): void {
+    if (!this.isDialogVisible) {
+      return;
+    }
+
+    if (this.dialogTypingEvent && this.dialogText) {
+      const page = this.dialogPages[this.dialogPageIndex] ?? '';
+      this.stopDialogTypewriter();
+      this.dialogText.setText(page);
+      if (this.dialogPageIndex < this.dialogPages.length - 1) {
+        this.isDialogAwaitingAdvance = true;
+        this.dialogHintText?.setVisible(true);
+      }
+      return;
+    }
+
+    if (!this.isDialogAwaitingAdvance) {
+      return;
+    }
+
+    this.dialogPageIndex += 1;
+    this.isDialogAwaitingAdvance = false;
+    this.dialogHintText?.setVisible(false);
+
+    if (this.dialogPageIndex >= this.dialogPages.length) {
+      this.hideDialog();
+      return;
+    }
+
+    this.typeCurrentDialogPage();
   }
 
   private stopDialogTypewriter(): void {
@@ -592,30 +684,76 @@ class CharacterScene extends Phaser.Scene {
     this.dialogTypingEvent = undefined;
   }
 
+  private getDialogTextArea(): { width: number; height: number } {
+    if (!this.dialogBox) {
+      return { width: 0, height: 0 };
+    }
+
+    return {
+      width: Math.max(1, this.dialogBox.displayWidth - DIALOG_PADDING_X * 2),
+      height: Math.max(1, this.dialogBox.displayHeight - DIALOG_PADDING_Y * 2 - 16)
+    };
+  }
+
+  private paginateDialogMessage(message: string): string[] {
+    if (!this.dialogText) {
+      return [message];
+    }
+
+    const content = message.trim();
+    if (!content) {
+      return [];
+    }
+
+    const textArea = this.getDialogTextArea();
+    this.dialogText.setWordWrapWidth(textArea.width, true);
+
+    const pages: string[] = [];
+    let index = 0;
+
+    while (index < content.length) {
+      while (index < content.length && content[index] === ' ') {
+        index += 1;
+      }
+
+      if (index >= content.length) {
+        break;
+      }
+
+      let low = index + 1;
+      let high = content.length;
+      let best = index + 1;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const candidate = content.slice(index, mid).trim();
+
+        this.dialogText.setText(candidate);
+        const bounds = this.dialogText.getBounds();
+        const fits = bounds.height <= textArea.height;
+
+        if (fits) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      const page = content.slice(index, best).trim();
+      pages.push(page);
+      index = best;
+    }
+
+    this.dialogText.setText('');
+    return pages;
+  }
+
   private refreshDialogBoxSize(): void {
     if (!this.dialogBox || !this.dialogText) {
       return;
     }
 
-    const currentText = this.dialogText.text;
-    this.dialogText.setWordWrapWidth(0, false);
-    this.dialogText.setText(currentText);
-    const naturalWidth = Math.max(DIALOG_MIN_TEXT_WIDTH, this.dialogText.width);
-    const targetTextWidth = Phaser.Math.Clamp(naturalWidth, DIALOG_MIN_TEXT_WIDTH, DIALOG_MAX_TEXT_WIDTH);
-
-    this.dialogText.setWordWrapWidth(targetTextWidth, true);
-    this.dialogText.setText(currentText);
-
-    const bounds = this.dialogText.getBounds();
-    const width = Phaser.Math.Clamp(
-      bounds.width + DIALOG_PADDING_X * 2,
-      DIALOG_MIN_WIDTH,
-      DIALOG_MAX_TEXT_WIDTH + DIALOG_PADDING_X * 2
-    );
-    const height = Math.max(DIALOG_MIN_HEIGHT, bounds.height + DIALOG_PADDING_Y * 2);
-
-    this.dialogBox.setSize(width, height);
-    this.dialogBox.setDisplaySize(width, height);
     this.updateDialogPosition();
   }
 
@@ -638,13 +776,18 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private hideDialog(): void {
-    if (!this.dialogBox || !this.dialogText) {
+    if (!this.dialogBox || !this.dialogText || !this.dialogHintText) {
       return;
     }
 
     this.stopDialogTypewriter();
+    this.isDialogVisible = false;
+    this.isDialogAwaitingAdvance = false;
+    this.dialogPages = [];
+    this.dialogPageIndex = 0;
     this.dialogBox.setVisible(false);
     this.dialogText.setVisible(false);
+    this.dialogHintText.setVisible(false);
   }
 }
 
