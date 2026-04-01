@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import personajeCaminar from '../src/img/Personaje_caminar.png';
+import cesped from '../src/img/cesped.jpg';
 
 type Facing = 'up' | 'down' | 'left' | 'right';
 
 const GAME_WIDTH = 420;
 const GAME_HEIGHT = 300;
+const WORLD_WIDTH = 1680;
+const WORLD_HEIGHT = 1200;
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
@@ -33,6 +36,7 @@ const WALK_COLS: Record<Facing, number[]> = {
 
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
+  private heroShadow?: Phaser.GameObjects.Ellipse;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -47,19 +51,28 @@ class CharacterScene extends Phaser.Scene {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT
     });
+    this.load.image('grass-tile', cesped);
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor('#e2e8f0');
-    this.add.rectangle(210, 150, 420, 300, 0xe5eef9, 1);
-    this.add.ellipse(210, 222, 210, 50, 0x0f172a, 0.12);
+    this.cameras.main.setBackgroundColor('#4b6b2b');
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    const grass = this.add.tileSprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, 'grass-tile');
+    grass.setOrigin(0.5);
+
+    this.heroShadow = this.add.ellipse(WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 38, 44, 14, 0x0f172a, 0.18);
+    this.heroShadow.setDepth(4);
 
     this.createAnimations();
 
-    this.hero = this.add.sprite(210, 184, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
+    this.hero = this.add.sprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'hero-sheet', this.frameIndex('down', IDLE_COL.down));
     this.hero.setOrigin(0.5, 0.88);
     this.hero.setScale(1.65);
     this.hero.setDepth(5);
+
+    this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
+    this.cameras.main.roundPixels = true;
 
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -106,8 +119,13 @@ class CharacterScene extends Phaser.Scene {
     const nextX = this.hero.x + normalizedX * this.moveSpeed * (delta / 1000);
     const nextY = this.hero.y + normalizedY * this.moveSpeed * (delta / 1000);
 
-    this.hero.x = Phaser.Math.Clamp(nextX, 44, GAME_WIDTH - 44);
-    this.hero.y = Phaser.Math.Clamp(nextY, 102, GAME_HEIGHT - 18);
+    this.hero.x = Phaser.Math.Clamp(nextX, 44, WORLD_WIDTH - 44);
+    this.hero.y = Phaser.Math.Clamp(nextY, 102, WORLD_HEIGHT - 18);
+
+    if (this.heroShadow) {
+      this.heroShadow.x = this.hero.x;
+      this.heroShadow.y = this.hero.y + 38;
+    }
 
     const nextFacing: Facing = Math.abs(normalizedX) > Math.abs(normalizedY)
       ? (normalizedX > 0 ? 'right' : 'left')
@@ -236,7 +254,7 @@ const FundamentosAdventure: React.FC = () => {
           <p className="character-kicker">Sprite Principal</p>
           <h3 className="character-title">Personaje desde Sprite Sheet</h3>
           <p className="character-text">
-            Se removio todo lo relacionado al mapa y UI de aventura. Esta vista usa solo el sprite sheet en src/img/Personaje_caminar.png con frames de caminata.
+            Esta vista usa el sprite sheet en src/img/Personaje_caminar.png sobre un terreno de cesped repetido desde src/img/cesped.jpg para extender el mundo mas alla de la pantalla.
           </p>
         </div>
 
