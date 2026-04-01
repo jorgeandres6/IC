@@ -592,6 +592,7 @@ class CharacterScene extends Phaser.Scene {
     this.updateDialogPosition();
 
     const finalMessage = message.trim();
+    console.log('[NPC Dialog]', finalMessage);
     this.dialogPages = this.paginateDialogMessage(finalMessage);
     this.dialogPageIndex = 0;
     this.isDialogVisible = true;
