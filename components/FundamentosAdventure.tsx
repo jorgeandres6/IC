@@ -32,9 +32,6 @@ const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
 const HERO_SCALE = 1.65;
 const HERO_ORIGIN_Y = 0.88;
-const HERO_SHADOW_WIDTH = 44;
-const HERO_SHADOW_HEIGHT = 14;
-const HERO_SHADOW_GROUND_OFFSET = 4;
 const WORLD_BACKGROUND = 0x40595d;
 const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
@@ -162,7 +159,6 @@ const WALK_COLS: Record<Facing, number[]> = {
 
 class CharacterScene extends Phaser.Scene {
   private hero?: Phaser.GameObjects.Sprite;
-  private heroShadow?: Phaser.GameObjects.Ellipse;
   private activeFacing: Facing = 'down';
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
@@ -199,10 +195,6 @@ class CharacterScene extends Phaser.Scene {
     this.hero.setOrigin(0.5, HERO_ORIGIN_Y);
     this.hero.setScale(HERO_SCALE);
     this.hero.setDepth(5);
-
-    this.heroShadow = this.add.ellipse(spawnX, spawnY, HERO_SHADOW_WIDTH, HERO_SHADOW_HEIGHT, 0x0f172a, 0.18);
-    this.heroShadow.setDepth(4);
-    this.updateHeroShadowPosition();
 
     this.cameras.main.startFollow(this.hero, true, 0.14, 0.14);
     this.cameras.main.roundPixels = true;
@@ -258,8 +250,6 @@ class CharacterScene extends Phaser.Scene {
     if (this.isWalkable(this.hero.x, nextY)) {
       this.hero.y = nextY;
     }
-
-    this.updateHeroShadowPosition();
 
     const nextFacing: Facing = Math.abs(normalizedX) > Math.abs(normalizedY)
       ? (normalizedX > 0 ? 'right' : 'left')
@@ -383,15 +373,6 @@ class CharacterScene extends Phaser.Scene {
     graphics.fillCircle(x, y, radius + 8);
     graphics.fillStyle(DETAIL_GREEN, 1);
     graphics.fillCircle(x, y, radius);
-  }
-
-  private updateHeroShadowPosition(): void {
-    if (!this.hero || !this.heroShadow) {
-      return;
-    }
-
-    const feetOffset = this.hero.displayHeight * (1 - this.hero.originY);
-    this.heroShadow.setPosition(this.hero.x, this.hero.y + feetOffset - HERO_SHADOW_GROUND_OFFSET);
   }
 
   private isWalkable(x: number, y: number): boolean {
