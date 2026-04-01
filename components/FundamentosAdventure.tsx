@@ -20,7 +20,9 @@ type Facing = 'up' | 'down' | 'left' | 'right';
 
 const GAME_WIDTH = 420;
 const GAME_HEIGHT = 300;
-const TILE_SIZE = 256;
+const SOURCE_TILE_SIZE = 256;
+const TILE_SCALE = 2 / 3;
+const TILE_SIZE = SOURCE_TILE_SIZE * TILE_SCALE;
 const MAP_COLS = 10;
 const MAP_ROWS = 7;
 const WORLD_WIDTH = MAP_COLS * TILE_SIZE;
@@ -29,6 +31,7 @@ const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 64;
 const FRAMES_PER_ROW = 6;
 const WORLD_BACKGROUND = 0x40595d;
+const SAND_BACKGROUND = 0xeabb71;
 const DETAIL_GREEN = 0x73ad3e;
 const DETAIL_GREEN_HIGHLIGHT = 0x95ca47;
 
@@ -326,6 +329,20 @@ class CharacterScene extends Phaser.Scene {
   }
 
   private drawWorld(): void {
+    const terrainBase = this.add.graphics();
+    terrainBase.setDepth(0.5);
+    terrainBase.fillStyle(SAND_BACKGROUND, 1);
+
+    WALKABLE_MAP.forEach((row, rowIndex) => {
+      row.forEach((isWalkable, colIndex) => {
+        if (!isWalkable) {
+          return;
+        }
+
+        terrainBase.fillRect(colIndex * TILE_SIZE, rowIndex * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      });
+    });
+
     WORLD_TILE_MAP.forEach((row, rowIndex) => {
       row.forEach((tile, colIndex) => {
         if (!tile) {
@@ -341,7 +358,7 @@ class CharacterScene extends Phaser.Scene {
         );
 
         sprite.setOrigin(0.5);
-        sprite.setScale(scaleX, scaleY);
+        sprite.setDisplaySize(TILE_SIZE * scaleX + 1, TILE_SIZE * scaleY + 1);
         sprite.setAngle(tile.rotation ?? 0);
         sprite.setDepth(1);
       });
