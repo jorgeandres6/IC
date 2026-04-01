@@ -50,6 +50,7 @@ const DIALOG_PADDING_X = 14;
 const DIALOG_PADDING_Y = 10;
 const DIALOG_MIN_WIDTH = 110;
 const DIALOG_MIN_HEIGHT = 36;
+const DIALOG_MIN_TEXT_WIDTH = 28;
 const DIALOG_MAX_TEXT_WIDTH = 240;
 const DIALOG_TYPEWRITER_DELAY = 20;
 const WALK_BOUNDS_PADDING = {
@@ -500,9 +501,9 @@ class CharacterScene extends Phaser.Scene {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#111827',
-      align: 'center',
-      wordWrap: { width: DIALOG_MAX_TEXT_WIDTH, useAdvancedWrap: true }
+      align: 'center'
     });
+    this.dialogText.setWordWrapWidth(DIALOG_MIN_TEXT_WIDTH, true);
     this.dialogText.setOrigin(0.5);
     this.dialogText.setDepth(31);
     this.dialogText.setVisible(false);
@@ -596,6 +597,15 @@ class CharacterScene extends Phaser.Scene {
       return;
     }
 
+    const currentText = this.dialogText.text;
+    this.dialogText.setWordWrapWidth(0, false);
+    this.dialogText.setText(currentText);
+    const naturalWidth = Math.max(DIALOG_MIN_TEXT_WIDTH, this.dialogText.width);
+    const targetTextWidth = Phaser.Math.Clamp(naturalWidth, DIALOG_MIN_TEXT_WIDTH, DIALOG_MAX_TEXT_WIDTH);
+
+    this.dialogText.setWordWrapWidth(targetTextWidth, true);
+    this.dialogText.setText(currentText);
+
     const bounds = this.dialogText.getBounds();
     const width = Phaser.Math.Clamp(
       bounds.width + DIALOG_PADDING_X * 2,
@@ -606,6 +616,7 @@ class CharacterScene extends Phaser.Scene {
 
     this.dialogBox.setSize(width, height);
     this.dialogBox.setDisplaySize(width, height);
+    this.updateDialogPosition();
   }
 
   private async requestNpcDialog(): Promise<void> {
