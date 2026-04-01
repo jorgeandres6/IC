@@ -53,6 +53,7 @@ const DIALOG_PADDING_X = 12;
 const DIALOG_PADDING_Y = 10;
 const DIALOG_TYPEWRITER_DELAY = 18;
 const DIALOG_HINT_TEXT = 'ESPACIO para continuar';
+const DIALOG_CLOSE_HINT_TEXT = 'ESPACIO para cerrar';
 const WALK_BOUNDS_PADDING = {
   left: TILE_SIZE * 0.2578125,
   right: TILE_SIZE * 0.2578125,
@@ -634,11 +635,11 @@ class CharacterScene extends Phaser.Scene {
 
         if (visibleChars >= currentPage.length) {
           this.stopDialogTypewriter();
-
-          if (this.dialogPageIndex < this.dialogPages.length - 1) {
-            this.isDialogAwaitingAdvance = true;
-            this.dialogHintText?.setVisible(true);
-          }
+          this.isDialogAwaitingAdvance = true;
+          this.dialogHintText?.setText(
+            this.dialogPageIndex < this.dialogPages.length - 1 ? DIALOG_HINT_TEXT : DIALOG_CLOSE_HINT_TEXT
+          );
+          this.dialogHintText?.setVisible(true);
         }
       }
     });
@@ -653,10 +654,11 @@ class CharacterScene extends Phaser.Scene {
       const page = this.dialogPages[this.dialogPageIndex] ?? '';
       this.stopDialogTypewriter();
       this.dialogText.setText(page);
-      if (this.dialogPageIndex < this.dialogPages.length - 1) {
-        this.isDialogAwaitingAdvance = true;
-        this.dialogHintText?.setVisible(true);
-      }
+      this.isDialogAwaitingAdvance = true;
+      this.dialogHintText?.setText(
+        this.dialogPageIndex < this.dialogPages.length - 1 ? DIALOG_HINT_TEXT : DIALOG_CLOSE_HINT_TEXT
+      );
+      this.dialogHintText?.setVisible(true);
       return;
     }
 
@@ -664,14 +666,14 @@ class CharacterScene extends Phaser.Scene {
       return;
     }
 
-    this.dialogPageIndex += 1;
-    this.isDialogAwaitingAdvance = false;
-    this.dialogHintText?.setVisible(false);
-
-    if (this.dialogPageIndex >= this.dialogPages.length) {
+    if (this.dialogPageIndex >= this.dialogPages.length - 1) {
       this.hideDialog();
       return;
     }
+
+    this.dialogPageIndex += 1;
+    this.isDialogAwaitingAdvance = false;
+    this.dialogHintText?.setVisible(false);
 
     this.typeCurrentDialogPage();
   }
@@ -758,7 +760,7 @@ class CharacterScene extends Phaser.Scene {
     }
 
     this.isFetchingDialog = true;
-    this.showDialogInstant('Consultando...');
+            this.showDialogInstant('Hola Heroe...');
 
     try {
       const response = await apiService.getNpcPoliticalConsultantDialog('heroe');
