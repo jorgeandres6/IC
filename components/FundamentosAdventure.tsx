@@ -69,7 +69,7 @@ const WORLD_TILE_MAP: TilePlacement[][] = Array.from({ length: MAP_ROWS }, () =>
 );
 
 const WALKABLE_MAP: boolean[][] = Array.from({ length: MAP_ROWS }, () =>
-  Array.from({ length: MAP_COLS }, () => false)
+  Array.from({ length: MAP_COLS }, () => true)
 );
 
 const putTile = (x: number, y: number, tileId: number, options: Omit<TilePlacement, 'tileId'> = {}): void => {
